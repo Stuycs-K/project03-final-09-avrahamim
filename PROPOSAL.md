@@ -11,7 +11,7 @@ The tournament progresses single-elimination until there is one final victor.
 The above is my MVP. If the project goes well, I will look into adding more math operations like subtraction, multiplication, division, exponentiation and modulo. 
 
 ## Intended Usage
-Users will connect to a server, which will eventually start a game at a user's prompting. Then, users simply will have to type in and enter their answers. Ctrl+c can disconnect midgame.
+Users will connect to a server, which will eventually start a game at a user's prompting. Then, users simply will have to type in and enter their answers. Ctrl+c can disconnect midgame. For a user who wants to test the program/play it on their own, they will initialize a server and connect several clients to it using make commands proscribed in README.md
 
 ## Technical Details
 All users will act as clients, using pipes to send questions and answers back and forth with the central game server. The game server will use an allocated integer and "/dev/urandom" to store game information and generate new random numbers for the game.
