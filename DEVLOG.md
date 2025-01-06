@@ -1,8 +1,6 @@
 # Dev Log:
 
-This document must be updated daily by EACH group member.
-
-## Player 1
+## Michael Avrahami
 
 ### 2024-01-02 - Brief description
 Expanded description including how much time was spent on task.
