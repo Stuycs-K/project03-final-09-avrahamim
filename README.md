@@ -24,3 +24,4 @@ How does the user install/compile/run the program?
 How does the user interact with this program?
 * The server should not interact any more with the program, unless the server wants to shut down the whole game. The server can do this with ctrl+c.
 * The users will receive two numbers which they will be instructed to add together. At the time of receiving their numbers, the users will have 7 seconds to mentally add them together and enter the sum into stdin. That is the only way the users should ever have to interact with the program.
+* Users can forfeit their game with ctrl+c
