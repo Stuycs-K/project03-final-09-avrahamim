@@ -7,9 +7,13 @@ static void sighandler(int signo){
   if (signo == SIGPIPE){}
 }
 
-// Returns the pid of whichever player won the round
+void err(){
+  printf("Errno: %d\n", errno);
+  printf("Error: %s\n", strerror(errno));
+  exit(0);
+}
 
-void runGame(){
+void initializeGame(){
   int to_client;
   int from_client;
   int numPlayers = 0;
@@ -33,21 +37,12 @@ void runGame(){
       }
       continue;
     }
+    // Subserver process. Finish connecting subserver to client, send subserver and client off to interact
     if (!forkResult){
       to_client = subserver_connect( from_client );
 
-      char line[BUFFER_SIZE];
-
-      while (1){
-        int readResult = read(from_client, line, BUFFER_SIZE);
-        if (readResult == -1) { printf("reading from client string failed\n"); exit(1);}
-        //Do something to line
-        int writeResult = write(to_client, line, BUFFER_SIZE);
-        if (writeResult == -1) { printf("Client closed connection.\n"); break;}
-        sleep(1);
-      }
-      close(from_client);
       close(to_client);
+      close(from_client);
       exit(0);
     }
   }
@@ -58,6 +53,6 @@ int main() {
   signal(SIGPIPE, sighandler);
   printf("parent pid: %d\n", getpid());
 
-  runGame();
+  initializeGame();
   return 0;
 }
