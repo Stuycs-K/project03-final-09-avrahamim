@@ -13,18 +13,29 @@ void err(){
   exit(0);
 }
 
+// This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
+int playGame(int from_client, int to_client, int subserverID){
+  printf("[%d] : %d\n", getpid(), subserverID);
+  return 0;
+}
+
+void gameHub(int numPlayers, int* players){
+  printf("[%d] numPlayers: %d\n", getpid(), numPlayers);
+  for (int i = 0; i < numPlayers; i++){
+    printf("%d\n", *(players + i));
+  }
+}
+
 void initializeGame(){
   int to_client;
   int from_client;
   int numPlayers = 0;
   int* players = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int subserverID;
-  int* opponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
 
   mkfifo(GENPIPE, 0644);
-  int time = 0;
 
-  while (time < 20){
+  while (numPlayers < TOTALPLAYERS){
     // Waiting for client to connect to server
     printf("[%d] awaiting next client:\n", getpid());
     from_client = server_setup();
@@ -35,11 +46,6 @@ void initializeGame(){
       *(players + numPlayers) = forkResult;
       numPlayers++;
 
-      int* playersPrint = players;
-      while (*playersPrint){
-        printf("%d\n", *(playersPrint));
-        playersPrint++;
-      }
       continue;
     }
     // Subserver process. Finish connecting subserver to client, send subserver and client off to interact
@@ -47,11 +53,15 @@ void initializeGame(){
       subserverID = numPlayers;
       to_client = subserver_connect( from_client );
 
+      int result = playGame(from_client, to_client, subserverID);
       close(to_client);
       close(from_client);
       exit(0);
     }
   }
+
+  // Only main server now. Begins the real :) gameplay
+  gameHub(numPlayers, players);
 }
 
 int main() {

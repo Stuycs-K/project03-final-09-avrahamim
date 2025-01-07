@@ -1,6 +1,6 @@
 .PHONY: compile server player
 
-compile compileMe: gameServer.o gamePlayer.o pipe_networking.o
+compile: gameServer.o gamePlayer.o pipe_networking.o
 	@gcc -o run_server game_server.o pipe_networking.o -g -Wall -lm
 	@gcc -o run_player game_player.o pipe_networking.o -g -Wall -lm
 gameServer.o: game_server.c game_server.h
@@ -10,10 +10,10 @@ gamePlayer.o: game_player.c game_player.h
 pipe_networking.o: pipe_networking.c pipe_networking.h
 	@gcc -c pipe_networking.c -g -Wall
 
-server: compileMe
+server:
 	@./run_server
 
-player: compileMe
+player:
 	@./run_player
 
 clean:
