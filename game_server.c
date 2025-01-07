@@ -18,8 +18,13 @@ void initializeGame(){
   int from_client;
   int numPlayers = 0;
   int* players = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int subserverID;
+  int* opponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
 
-  while (1){
+  mkfifo(GENPIPE, 0644);
+  int time = 0;
+
+  while (time < 20){
     // Waiting for client to connect to server
     printf("[%d] awaiting next client:\n", getpid());
     from_client = server_setup();
@@ -39,6 +44,7 @@ void initializeGame(){
     }
     // Subserver process. Finish connecting subserver to client, send subserver and client off to interact
     if (!forkResult){
+      subserverID = numPlayers;
       to_client = subserver_connect( from_client );
 
       close(to_client);
