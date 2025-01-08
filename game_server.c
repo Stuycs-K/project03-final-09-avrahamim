@@ -16,6 +16,16 @@ void err(){
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
 int playGame(int from_client, int to_client, int subserverID){
   //printf("[%d] : %d\n", getpid(), subserverID);
+  int genPipeFd = open(GENPIPE, O_RDONLY);
+  if (genPipeFd == -1) err();
+
+  // Grabbing opponent PID
+  int* listOfOpponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int readResult = read(genPipeFd, listOfOpponents, MAX_PLAYERS * sizeof(int));
+  if (readResult == -1) err();
+  printf("readResult: %d\n", readResult);
+
+  printf("[%d] opponent: %d\n", getpid(), *(listOfOpponents + subserverID));
   return 0;
 }
 
@@ -56,6 +66,14 @@ void gameHub(int numPlayers, int* players){
   for (int i = 0; i < numPlayers; i++){
     printf("[%d] Player: %d. Opponent: %d\n", i, *(players + i), *(opponents + i));
   }
+
+  int genPipeFd = open(GENPIPE, O_WRONLY);
+  if (genPipeFd == -1) err();
+
+  int writeResult = write(genPipeFd, opponents, MAX_PLAYERS * sizeof(int));
+  if (writeResult == -1) err();
+
+  sleep(3);
 }
 
 void initializeGame(){
