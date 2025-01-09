@@ -23,7 +23,16 @@ int playGame(int from_client, int to_client, int subserverID){
   int* listOfOpponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int readResult = read(genPipeFd, listOfOpponents, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
-  printf("readResult: %d\n", readResult);
+
+  char * readPipe = (char*)(calloc(20, sizeof(char)));
+  char * writePipe = (char*)(calloc(20, sizeof(char)));
+  sprintf(readPipe, "%d", getpid());
+  sprintf(writePipe, "%d", *(listOfOpponents + subserverID));
+  printf("%s %s\n", readPipe, writePipe);
+
+  mkfifo(writePipe);
+
+  int readFd = open(readPipe
 
   printf("[%d] opponent: %d\n", getpid(), *(listOfOpponents + subserverID));
   return 0;
@@ -70,8 +79,10 @@ void gameHub(int numPlayers, int* players){
   int genPipeFd = open(GENPIPE, O_WRONLY);
   if (genPipeFd == -1) err();
 
-  int writeResult = write(genPipeFd, opponents, MAX_PLAYERS * sizeof(int));
-  if (writeResult == -1) err();
+  for (int i = 0; i < numPlayers; i++){
+    int writeResult = write(genPipeFd, opponents, MAX_PLAYERS * sizeof(int));
+    if (writeResult == -1) err();
+  }
 
   sleep(3);
 }
