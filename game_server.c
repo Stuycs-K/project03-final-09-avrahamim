@@ -13,6 +13,23 @@ void err(){
   exit(0);
 }
 
+unsigned int getRandomNumber(){
+  unsigned int randNum;
+  int randfd = open("/dev/random", O_RDONLY);
+  int readResult = read(randfd, &randNum, sizeof(int));
+  if (readResult == -1) err();
+  return randNum;
+}
+
+int createSharedInt(){
+  unsigned int randNum = getRandomNumber();
+
+  int shmid = shmget(randNum, sizeof(int), IPC_CREAT | 0640);
+  printf("shmid: %d\n", shmid);
+
+  return shmid;
+}
+
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
 int playGame(int from_client, int to_client, int subserverID){
   //printf("[%d] : %d\n", getpid(), subserverID);
@@ -20,38 +37,18 @@ int playGame(int from_client, int to_client, int subserverID){
   if (genPipeFd == -1) err();
 
   // Grabbing opponent PID
-  int* listOfOpponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
-  int readResult = read(genPipeFd, listOfOpponents, MAX_PLAYERS * sizeof(int));
-  if (readResult == -1) err();
-
-  sleep(1);
-  // Checks who is first
-  int* isFirsts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
-  readResult = read(genPipeFd, isFirsts, MAX_PLAYERS * sizeof(int));
+  int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int readResult = read(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
   int player = getpid();
-  int opponent = *(listOfOpponents + subserverID);
-  int isFirst = *(isFirsts + subserverID);
-
-  printf("[%d] opponent: %d. First? %d\n", getpid(), opponent, isFirst);
 
   // Byes automatically advance
-  if (*(listOfOpponents + subserverID) == 0){
+  if (*(sharedInts + subserverID) == 0){
     return 1;
   }
 
-  // Takes player and opponent pid to create read and write pipes between the two subservers in the 1v1
-  char * readPipe = (char*)(calloc(20, sizeof(char)));
-  char * writePipe = (char*)(calloc(20, sizeof(char)));
-  sprintf(readPipe, "%d", player);
-  sprintf(writePipe, "%d", opponent);
-  mkfifo(readPipe, 0666);
-
-  // Begins the game ,
-  if (isFirst){
-
-  }
+  // Begins the game
 
   return 0;
 }
@@ -59,16 +56,13 @@ int playGame(int from_client, int to_client, int subserverID){
 // This is where the main server organizes the participants to play against each other, organizes results
 void gameHub(int numPlayers, int* players){
   printf("[%d] numPlayers: %d\n", getpid(), numPlayers);
-  int* opponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
-  int* first = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int* semaphores = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
 
   // If there are an odd number of players, one random player gets a bye
   int byePlayerIndex = -1;
   if (numPlayers % 2 != 0){
-    unsigned int randNum;
-    int randfd = open("/dev/random", O_RDONLY);
-    int readResult = read(randfd, &randNum, sizeof(int));
-    if (readResult == -1) err();
+    unsigned int randNum = getRandomNumber() % numPlayers;
     byePlayerIndex = randNum % numPlayers;
   }
   printf("[%d] byePlayerIndex: %d\n", getpid(), byePlayerIndex);
@@ -83,9 +77,14 @@ void gameHub(int numPlayers, int* players){
       nextPlayer = 2;
     }
 
-    *(opponents + i) = *(players + i + nextPlayer);
-    *(opponents + i + nextPlayer) = *(players + i);
-    *(first + i) = 1;
+    // Creating shared memory and semaphore for each pair
+    unsigned int sharedMemoryKey = createSharedInt();
+    unsigned int semaphoreKey = getRandomNumber();
+
+    *(sharedInts + i) = sharedMemoryKey;
+    *(sharedInts + i + nextPlayer) = sharedMemoryKey;
+    *(semaphores + i) = semaphoreKey;
+    *(semaphores + i + nextPlayer) = semaphoreKey;
 
     if (i + 1 == byePlayerIndex){
       i++;
@@ -93,20 +92,20 @@ void gameHub(int numPlayers, int* players){
   }
 
   for (int i = 0; i < numPlayers; i++){
-    printf("[%d] Player: %d. Opponent: %d. First? %d\n", i, *(players + i), *(opponents + i), *(first + i));
+    printf("[%d] SharedMemoryKey: %u. SemaphoreKey: %u\n", getpid(), *(sharedInts + i), *(semaphores + i));
   }
 
   int genPipeFd = open(GENPIPE, O_WRONLY);
   if (genPipeFd == -1) err();
 
   for (int i = 0; i < numPlayers; i++){
-    int writeResult = write(genPipeFd, opponents, MAX_PLAYERS * sizeof(int));
+    int writeResult = write(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
     if (writeResult == -1) err();
   }
 
 
   for (int i = 0; i < numPlayers; i++){
-    int writeResult = write(genPipeFd, first, MAX_PLAYERS * sizeof(int));
+    int writeResult = write(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
     if (writeResult == -1) err();
   }
 
