@@ -36,12 +36,28 @@ int playGame(int from_client, int to_client, int subserverID){
   int genPipeFd = open(GENPIPE, O_RDONLY);
   if (genPipeFd == -1) err();
 
-  // Grabbing opponent PID
-  int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  // Grabbing shared memory and semaphore info
+  unsigned int* sharedInts = (unsigned int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int readResult = read(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
+  sleep(1);
+
+  unsigned int* semaphores = (unsigned int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
+  if (readResult == -1) err();
+
   int player = getpid();
+  unsigned int sharedIntKey = *(sharedInts + subserverID);
+  unsigned int semaphoreKey = *(semaphores + subserverID);
+
+  int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0640);
+  if (shmid == -1) err();
+
+  // Attaching variable to shared memory
+  int* data;
+
+  printf("[%d]. Shared memory: %u. Semaphore: %u\n", player, sharedIntKey, semaphoreKey);
 
   // Byes automatically advance
   if (*(sharedInts + subserverID) == 0){
