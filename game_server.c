@@ -46,8 +46,12 @@ int playGame(int from_client, int to_client, int subserverID){
   char * writePipe = (char*)(calloc(20, sizeof(char)));
   sprintf(readPipe, "%d", player);
   sprintf(writePipe, "%d", opponent);
-
   mkfifo(readPipe, 0666);
+
+  // Begins the game ,
+  if (isFirst){
+
+  }
 
   return 0;
 }
