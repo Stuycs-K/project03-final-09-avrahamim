@@ -16,6 +16,43 @@ void err(){
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
 int playGame(int from_client, int to_client, int subserverID){
   //printf("[%d] : %d\n", getpid(), subserverID);
+  int genPipeFd = open(GENPIPE, O_RDONLY);
+  if (genPipeFd == -1) err();
+
+  // Grabbing opponent PID
+  int* listOfOpponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int readResult = read(genPipeFd, listOfOpponents, MAX_PLAYERS * sizeof(int));
+  if (readResult == -1) err();
+
+  sleep(1);
+  // Checks who is first
+  int* isFirsts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  readResult = read(genPipeFd, isFirsts, MAX_PLAYERS * sizeof(int));
+  if (readResult == -1) err();
+
+  int player = getpid();
+  int opponent = *(listOfOpponents + subserverID);
+  int isFirst = *(isFirsts + subserverID);
+
+  printf("[%d] opponent: %d. First? %d\n", getpid(), opponent, isFirst);
+
+  // Byes automatically advance
+  if (*(listOfOpponents + subserverID) == 0){
+    return 1;
+  }
+
+  // Takes player and opponent pid to create read and write pipes between the two subservers in the 1v1
+  char * readPipe = (char*)(calloc(20, sizeof(char)));
+  char * writePipe = (char*)(calloc(20, sizeof(char)));
+  sprintf(readPipe, "%d", player);
+  sprintf(writePipe, "%d", opponent);
+  mkfifo(readPipe, 0666);
+
+  // Begins the game ,
+  if (isFirst){
+
+  }
+
   return 0;
 }
 
@@ -23,6 +60,7 @@ int playGame(int from_client, int to_client, int subserverID){
 void gameHub(int numPlayers, int* players){
   printf("[%d] numPlayers: %d\n", getpid(), numPlayers);
   int* opponents = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int* first = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
 
   // If there are an odd number of players, one random player gets a bye
   int byePlayerIndex = -1;
@@ -47,6 +85,7 @@ void gameHub(int numPlayers, int* players){
 
     *(opponents + i) = *(players + i + nextPlayer);
     *(opponents + i + nextPlayer) = *(players + i);
+    *(first + i) = 1;
 
     if (i + 1 == byePlayerIndex){
       i++;
@@ -54,8 +93,24 @@ void gameHub(int numPlayers, int* players){
   }
 
   for (int i = 0; i < numPlayers; i++){
-    printf("[%d] Player: %d. Opponent: %d\n", i, *(players + i), *(opponents + i));
+    printf("[%d] Player: %d. Opponent: %d. First? %d\n", i, *(players + i), *(opponents + i), *(first + i));
   }
+
+  int genPipeFd = open(GENPIPE, O_WRONLY);
+  if (genPipeFd == -1) err();
+
+  for (int i = 0; i < numPlayers; i++){
+    int writeResult = write(genPipeFd, opponents, MAX_PLAYERS * sizeof(int));
+    if (writeResult == -1) err();
+  }
+
+
+  for (int i = 0; i < numPlayers; i++){
+    int writeResult = write(genPipeFd, first, MAX_PLAYERS * sizeof(int));
+    if (writeResult == -1) err();
+  }
+
+  sleep(2);
 }
 
 void initializeGame(){
