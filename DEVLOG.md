@@ -21,4 +21,8 @@ Began work on subservers piping to each other info. o.3 hrs
 ### 2025-01-09 - Absence
 Absent from class, unable to work at home.
 
+### 2025-01-10 - Restructure
+Took down subserver pipe communication with each other. 0.2 hrs
+Began working with semaphores and shared memory instead to communicate info between subservers 1 hr
+
 
