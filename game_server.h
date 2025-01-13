@@ -5,8 +5,18 @@
 #include <sys/shm.h>
 #include <sys/ipc.h>
 #include <sys/types.h>
+#include <sys/sem.h>
 #define MAX_PLAYERS 100
 #define READ 0
 #define WRITE 1
 #define GENPIPE "generalServerPipe"
-#define TOTALPLAYERS 3
+#define TOTALPLAYERS 2
+#define DOWN -1
+#define UP 1
+
+union semun{
+  int val;
+  struct semid_ds *buf;
+  unsigned short *array;
+  struct seminfo *__buf;
+};

@@ -21,6 +21,22 @@ unsigned int getRandomNumber(){
   return randNum;
 }
 
+// Creates a semaphore, sets value to 1, returns id
+int createSemaphore(){
+  unsigned int randNum = getRandomNumber();
+
+  int semid = semget(randNum, 1, IPC_CREAT | 0640);
+
+  union semun us;
+  us.val = 1;
+  semctl(semid, 0, SETVAL, us);
+
+  printf("semid: %d\n", semid);
+
+  return semid;
+}
+
+// Creates shared memory integer and returns the key
 int createSharedInt(){
   unsigned int randNum = getRandomNumber();
 
@@ -28,6 +44,26 @@ int createSharedInt(){
   printf("shmid: %d\n", shmid);
 
   return shmid;
+}
+
+// Subserver takes the pastNumber, and interacts with the client to return the summed number
+int playerAdd(int from_client, int to_client, int pastNum){
+  // Writing numbers to add to client
+  unsigned int randNum = getRandomNumber() % 200;
+  int numbers[2];
+  numbers[0] = pastNum;
+  numbers[1] = randNum;
+  int writeResult = write(to_client, numbers, 2*sizeof(int));
+  if (writeResult == -1) err();
+
+  // Giving the client time to respond, then checking if it is the write answer.
+  sleep(7);
+  int answer;
+  int readResult = read(from_client, &answer, sizeof(int));
+  if (readResult == -1) err();
+  printf("[%d] read result: %d\n", getpid(), answer);
+
+  return answer;
 }
 
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
@@ -43,6 +79,11 @@ int playGame(int from_client, int to_client, int subserverID){
 
   sleep(1);
 
+  // Byes automatically advance
+  if (*(sharedInts + subserverID) == 0){
+    return 1;
+  }
+
   unsigned int* semaphores = (unsigned int*)(calloc(MAX_PLAYERS, sizeof(int)));
   readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
@@ -50,21 +91,32 @@ int playGame(int from_client, int to_client, int subserverID){
   int player = getpid();
   unsigned int sharedIntKey = *(sharedInts + subserverID);
   unsigned int semaphoreKey = *(semaphores + subserverID);
+  printf("[%d]. Shared memory: %u. Semaphore: %u\n", player, sharedIntKey, semaphoreKey);
 
+  // Accessing semaphore and shared memory
   int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0640);
   if (shmid == -1) err();
 
+  int semid = semget(semaphoreKey, 1, 0);
+  struct sembuf sb;
+  sb.sem_num = 0;
+  sb.sem_flg = SEM_UNDO;
+  sb.sem_op = DOWN;
+
   // Attaching variable to shared memory
-  int* data;
-
-  printf("[%d]. Shared memory: %u. Semaphore: %u\n", player, sharedIntKey, semaphoreKey);
-
-  // Byes automatically advance
-  if (*(sharedInts + subserverID) == 0){
-    return 1;
-  }
+  int * data;
+  data = shmat(shmid, 0, 0);
 
   // Begins the game
+  while (1){
+    semop(semid, &sb, 1);
+    printf("[%d] got the semaphore! data: %d\n", getpid(), *data);
+
+    int result = playerAdd(from_client, to_client, *data);
+
+    sb.sem_op = 1;
+    semop(semid, &sb, 1);
+  }
 
   return 0;
 }
