@@ -31,9 +31,9 @@ int createSemaphore(){
   us.val = 1;
   semctl(semid, 0, SETVAL, us);
 
-  printf("semid: %d. Semval: %d\n", semid, semctl(semid, 0, GETVAL, us));
+  printf("semkey: %d\n", randNum);
 
-  return semid;
+  return randNum;
 }
 
 // Creates shared memory integer and returns the key
@@ -53,6 +53,8 @@ int playerAdd(int from_client, int to_client, int pastNum){
   int numbers[2];
   numbers[0] = pastNum;
   numbers[1] = randNum;
+  printf("past number: %d\n", pastNum);
+  printf("number to add: %d\n", randNum);
   int writeResult = write(to_client, numbers, 2*sizeof(int));
   if (writeResult == -1) err();
 
@@ -61,9 +63,14 @@ int playerAdd(int from_client, int to_client, int pastNum){
   int answer;
   int readResult = read(from_client, &answer, sizeof(int));
   if (readResult == -1) err();
-  printf("[%d] read result: %d\n", getpid(), answer);
 
-  return answer;
+  // Returns the value if the player answered correctly, and -1 if not
+  if (answer == pastNum + randNum){
+    return answer;
+  }
+  else {
+    return -1;
+  }
 }
 
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
@@ -103,22 +110,28 @@ int playGame(int from_client, int to_client, int subserverID){
   sb.sem_op = DOWN;
 
   // Attaching variable to shared memory
-  int * data;
+  int * data = 0;
   data = shmat(shmid, 0, 0);
 
-  // Begins the game
+  // Begins the game by downing the semaphore, accessing the client answer, then upping the semaphore
   while (1){
     sb.sem_op = DOWN;
     semop(semid, &sb, 1);
-    printf("[%d] got the semaphore! data: %d.\n", getpid(), *data);
 
+    // Check if player won
+    if (*data == -1){
+      return 1;
+    }
+    // if result is positive, the player answered correctly. If result == -1, the player did not
+    // answer correctly and they return -1, and set *data = -1 to let opponent know they won
     int result = playerAdd(from_client, to_client, *data);
-    printf("result: %d\n", result);
-    *data += result;
 
-    printf("[%d] upped the semaphore.\n", getpid());
+    *data = result;
     sb.sem_op = UP;
     semop(semid, &sb, 1);
+    if (*data == -1){
+      return -1;
+    }
   }
 
   return 0;
