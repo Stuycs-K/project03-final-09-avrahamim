@@ -23,6 +23,9 @@ Absent from class, unable to work at home.
 
 ### 2025-01-10 - Restructure
 Took down subserver pipe communication with each other. 0.2 hrs
-Began working with semaphores and shared memory instead to communicate info between subservers 1 hr
+Began working with semaphores and shared memory instead to communicate info between subservers. 1 hr
+
+### 2025-01-11/12 - Accessing
+Subservers worked to access their respective semaphores and shared memory segments to allow the game to begin. 1.5 hrs
 
 
