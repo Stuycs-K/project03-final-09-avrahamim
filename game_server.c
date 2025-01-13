@@ -31,7 +31,7 @@ int createSemaphore(){
   us.val = 1;
   semctl(semid, 0, SETVAL, us);
 
-  printf("semid: %d\n", semid);
+  printf("semid: %d. Semval: %d\n", semid, semctl(semid, 0, GETVAL, us));
 
   return semid;
 }
@@ -88,10 +88,9 @@ int playGame(int from_client, int to_client, int subserverID){
   readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
-  int player = getpid();
   unsigned int sharedIntKey = *(sharedInts + subserverID);
   unsigned int semaphoreKey = *(semaphores + subserverID);
-  printf("[%d]. Shared memory: %u. Semaphore: %u\n", player, sharedIntKey, semaphoreKey);
+  //printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
 
   // Accessing semaphore and shared memory
   int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0640);
@@ -109,12 +108,16 @@ int playGame(int from_client, int to_client, int subserverID){
 
   // Begins the game
   while (1){
+    sb.sem_op = DOWN;
     semop(semid, &sb, 1);
-    printf("[%d] got the semaphore! data: %d\n", getpid(), *data);
+    printf("[%d] got the semaphore! data: %d.\n", getpid(), *data);
 
     int result = playerAdd(from_client, to_client, *data);
+    printf("result: %d\n", result);
+    *data += result;
 
-    sb.sem_op = 1;
+    printf("[%d] upped the semaphore.\n", getpid());
+    sb.sem_op = UP;
     semop(semid, &sb, 1);
   }
 
@@ -147,7 +150,7 @@ void gameHub(int numPlayers, int* players){
 
     // Creating shared memory and semaphore for each pair
     unsigned int sharedMemoryKey = createSharedInt();
-    unsigned int semaphoreKey = getRandomNumber();
+    unsigned int semaphoreKey = createSemaphore();
 
     *(sharedInts + i) = sharedMemoryKey;
     *(sharedInts + i + nextPlayer) = sharedMemoryKey;
@@ -207,7 +210,7 @@ void initializeGame(){
       subserverID = numPlayers;
       to_client = subserver_connect( from_client );
 
-      int result = playGame(from_client, to_client, subserverID);
+      playGame(from_client, to_client, subserverID);
       close(to_client);
       close(from_client);
       exit(0);

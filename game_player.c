@@ -20,10 +20,16 @@ int main() {
 
   from_server = client_handshake( &to_server );
 
-  int numbers[2];
-  int readResult = read(from_server, numbers, 2*sizeof(int));
-  if (readResult == -1) err();
+  while (1){
+    int numbers[2];
+    int readResult = read(from_server, numbers, 2*sizeof(int));
+    if (readResult == -1) err();
 
-  printf("numbers[0]: %d. numbers[1]: %d\n", numbers[0], numbers[1]);
+    printf("numbers[0]: %d. numbers[1]: %d\n", numbers[0], numbers[1]);
 
+    int toWrite = numbers[0] + numbers[1];
+
+    int writeResult = write(to_server, &toWrite, sizeof(int));
+    if (writeResult == -1) err();
+  }
 }
