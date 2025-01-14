@@ -64,9 +64,11 @@ int playerAdd(int from_client, int to_client, int pastNum){
 
   // Returns the value if the player answered correctly, and -1 if not
   if (answer == pastNum + randNum){
+    printf("%d is correct!\n", answer);
     return answer;
   }
   else {
+    printf("%d is incorrect.\n", answer);
     return -1;
   }
 }
