@@ -28,4 +28,8 @@ Began working with semaphores and shared memory instead to communicate info betw
 ### 2025-01-11/12 - Accessing
 Subservers worked to access their respective semaphores and shared memory segments to allow the game to begin. 1.5 hrs
 
+### 2025-01-13 - User Interface
+Wrote client to server communication via pipes - 0.5 hrs
+Wrote client-side operations - reading from stdin and processing data
+
 
