@@ -53,8 +53,6 @@ int playerAdd(int from_client, int to_client, int pastNum){
   int numbers[2];
   numbers[0] = pastNum;
   numbers[1] = randNum;
-  printf("past number: %d\n", pastNum);
-  printf("number to add: %d\n", randNum);
   int writeResult = write(to_client, numbers, 2*sizeof(int));
   if (writeResult == -1) err();
 
