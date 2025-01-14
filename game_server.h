@@ -13,6 +13,8 @@
 #define TOTALPLAYERS 2
 #define DOWN -1
 #define UP 1
+#define VICTORY -10 //Randomly chosen numbers that cannot
+#define LOSS -20    //possibly match any game numbers
 
 union semun{
   int val;

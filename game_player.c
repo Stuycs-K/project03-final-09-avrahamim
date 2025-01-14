@@ -33,12 +33,30 @@ int main() {
   //printf("y u no work client\n");
 
   from_server = client_handshake( &to_server );
+  int initNum = -1;
+  int writeResult = write(to_server, &initNum, sizeof(int));
+  if (writeResult == -1) err();
 
   while (1){
     // Reading in numbers from server
     int numbers[2];
     int readResult = read(from_server, numbers, 2*sizeof(int));
     if (readResult == -1) err();
+
+    // Checks if you've won or lost
+    if (*(numbers) == VICTORY){
+    	printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
+    	close(to_server);
+    	close(from_server);
+    	exit(0);
+    }
+    else if (*(numbers) == LOSS){
+    	printf("Sorry you ran out of time, or your answer was incorrect. You lose.\n");
+    	close(to_server);
+    	close(from_server);
+    	exit(0);
+    }
+    
 
     // Taking answer from player and turning it into an int
     printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
@@ -47,7 +65,7 @@ int main() {
     int answer = stringToNum(numberInputted, 20);
 
     // Writing answer to the server
-    int writeResult = write(to_server, &answer, sizeof(int));
+    writeResult = write(to_server, &answer, sizeof(int));
     if (writeResult == -1) err();
   }
 }

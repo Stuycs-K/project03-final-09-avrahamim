@@ -69,7 +69,7 @@ int playerAdd(int from_client, int to_client, int pastNum){
   }
   else {
     printf("%d is incorrect.\n", answer);
-    return -1;
+    return LOSS;
   }
 }
 
@@ -119,7 +119,10 @@ int playGame(int from_client, int to_client, int subserverID){
     semop(semid, &sb, 1);
 
     // Check if player won
-    if (*data == -1){
+    if (*data == VICTORY){
+      int dataToSend[] = {VICTORY, VICTORY};
+      int writeResult = write(to_client, dataToSend, 2*sizeof(int));
+      if (writeResult == -1) err();
       return 1;
     }
     // if result is positive, the player answered correctly. If result == -1, the player did not
@@ -127,13 +130,19 @@ int playGame(int from_client, int to_client, int subserverID){
     int result = playerAdd(from_client, to_client, *data);
 
     *data = result;
-    sb.sem_op = UP;
-    semop(semid, &sb, 1);
-    if (*data == -1){
+    if (*data == -LOSS){
+      // Turns shared memory to victory so opponent knows they've won
+      *data = VICTORY;
+      // Tell player they lost
+      int dataToSend[] = {LOSS, LOSS};
+      int writeResult = write(to_client, dataToSend, 2*sizeof(int));
+      if (writeResult == -1) err();
       return -1;
     }
+    sb.sem_op = UP;
+    semop(semid, &sb, 1);
   }
-
+ // This should never be reached
   return 0;
 }
 
