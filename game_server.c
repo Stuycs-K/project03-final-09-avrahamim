@@ -130,13 +130,16 @@ int playGame(int from_client, int to_client, int subserverID){
     int result = playerAdd(from_client, to_client, *data);
 
     *data = result;
-    if (*data == -LOSS){
+    printf("result: %d\n", result);
+    if (*data == LOSS){
       // Turns shared memory to victory so opponent knows they've won
       *data = VICTORY;
       // Tell player they lost
       int dataToSend[] = {LOSS, LOSS};
       int writeResult = write(to_client, dataToSend, 2*sizeof(int));
       if (writeResult == -1) err();
+      sb.sem_op = UP;
+      semop(semid, &sb, 1);
       return -1;
     }
     sb.sem_op = UP;

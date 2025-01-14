@@ -65,6 +65,7 @@ int main() {
     int answer = stringToNum(numberInputted, 20);
 
     // Writing answer to the server
+    printf("answer inputted: %d\n", answer);
     writeResult = write(to_server, &answer, sizeof(int));
     if (writeResult == -1) err();
   }
