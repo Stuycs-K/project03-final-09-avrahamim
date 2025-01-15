@@ -13,6 +13,11 @@ void err(){
   exit(0);
 }
 
+//Just needed a dummy handler
+void sigalrm_handler(int s) {
+    return;
+}
+
 unsigned int getRandomNumber(){
   unsigned int randNum;
   int randfd = open("/dev/random", O_RDONLY);
@@ -31,7 +36,7 @@ int createSemaphore(){
   us.val = 1;
   semctl(semid, 0, SETVAL, us);
 
-  printf("semkey: %d\n", randNum);
+  printf("semkey: %u\n", randNum);
 
   return randNum;
 }
@@ -56,11 +61,35 @@ int playerAdd(int from_client, int to_client, int pastNum){
   int writeResult = write(to_client, numbers, 2*sizeof(int));
   if (writeResult == -1) err();
 
+  // Creating timer
+  timer_t clk;
+  int realClock = timer_create(CLOCK_REALTIME, NULL, &clk);
+  if (realClock < 0) err();
+
+  struct sigaction sigalrm_act = {
+   .sa_handler = sigalrm_handler,
+   .sa_flags = 0
+  };
+  sigemptyset(&sigalrm_act.sa_mask);
+  realClock = sigaction(SIGALRM, &sigalrm_act, NULL);
+  if (realClock < 0) {
+    err();
+  }
+
+  timer_settime(clk, 0, &seven_second, NULL);
+
   // Giving the client time to respond, then checking if it is the write answer.
-  sleep(7);
   int answer;
   int readResult = read(from_client, &answer, sizeof(int));
-  if (readResult == -1) err();
+  if (readResult == -1){
+  	if (errno == EINTR){
+  		printf("Ran out of time.\n");
+  		return LOSS;
+  	}
+  	else {
+  		err();
+  	}
+  }
 
   // Returns the value if the player answered correctly, and -1 if not
   if (answer == pastNum + randNum){
@@ -133,6 +162,7 @@ int playGame(int from_client, int to_client, int subserverID){
 
     // Check if player won
     if (*data == VICTORY){
+      printf("someone won\n");
       *winOrLossData = VICTORY;
       return 1;
     }
@@ -142,11 +172,13 @@ int playGame(int from_client, int to_client, int subserverID){
 
     *data = result;
     printf("result: %d\n", result);
-    if (*data == LOSS){
-      // Turns shared memory to victory so opponent knows they've won
+    if (result == LOSS){
+      // Turns sharedInt to victory so opponent knows they've won
       *data = VICTORY;
+      printf("someone lost\n");
       // Tell player they lost
       *winOrLossData = LOSS;
+      // Up the semaphore so the opponent can access their loss
       sb.sem_op = UP;
       semop(semid, &sb, 1);
       return -1;
@@ -214,7 +246,9 @@ void gameHub(int numPlayers, int* players){
     if (writeResult == -1) err();
   }
 
-  sleep(2);
+  int status = 0;
+  int* statusP = &status;
+  wait(statusP);
 }
 
 void initializeGame(){
@@ -245,6 +279,7 @@ void initializeGame(){
       to_client = subserver_connect( from_client );
 
       playGame(from_client, to_client, subserverID);
+      printf("someone is exiting\n");
       close(to_client);
       close(from_client);
       exit(0);
@@ -253,6 +288,8 @@ void initializeGame(){
 
   // Only main server now. Begins the real :) gameplay
   gameHub(numPlayers, players);
+  printf("someone is exiting\n");
+  return;
 }
 
 int main() {

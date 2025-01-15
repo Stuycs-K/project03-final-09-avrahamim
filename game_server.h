@@ -6,6 +6,8 @@
 #include <sys/ipc.h>
 #include <sys/types.h>
 #include <sys/sem.h>
+#include <sys/wait.h>
+#include <time.h>
 #define MAX_PLAYERS 100
 #define READ 0
 #define WRITE 1
@@ -21,4 +23,14 @@ union semun{
   struct semid_ds *buf;
   unsigned short *array;
   struct seminfo *__buf;
+};
+
+struct itimerspec seven_second = {
+  .it_interval = {.tv_sec = 0, .tv_nsec = 0},
+  .it_value = {.tv_sec = 0, .tv_nsec = 7000000000}
+};
+
+struct itimerspec stop_timer = {
+  .it_interval = {.tv_sec = 0, .tv_nsec = 0},
+  .it_value = {.tv_sec = 0, .tv_nsec = 0}
 };
