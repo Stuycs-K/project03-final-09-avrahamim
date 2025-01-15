@@ -30,6 +30,10 @@ Subservers worked to access their respective semaphores and shared memory segmen
 
 ### 2025-01-13 - User Interface
 Wrote client to server communication via pipes - 0.5 hrs
-Wrote client-side operations - reading from stdin and processing data
+Wrote client-side operations - reading from stdin and processing data 0.5 hrs
+
+### 2025-01-14 - Shared Memory Restructuring
+Wrote winning and losing code--telling the players whether they won or lost, what to do if that happens. 0.75 hrs
+Used shared memory to indicate result to players - 0.2 hrs
 
 
