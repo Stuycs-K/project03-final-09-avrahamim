@@ -27,7 +27,7 @@ union semun{
 
 struct itimerspec seven_second = {
   .it_interval = {.tv_sec = 0, .tv_nsec = 0},
-  .it_value = {.tv_sec = 0, .tv_nsec = 7000000000}
+  .it_value = {.tv_sec = 7, .tv_nsec = 0}
 };
 
 struct itimerspec stop_timer = {

@@ -47,6 +47,8 @@ int main() {
   int readResult = read(from_server, &shmkey, sizeof(int));
   if (readResult == -1) err();
 
+  printf("shmkey: %d\n", shmkey);
+
   int shmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
 
   while (1){

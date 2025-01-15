@@ -18,17 +18,19 @@ void sigalrm_handler(int s) {
     return;
 }
 
-unsigned int getRandomNumber(){
+int getRandomNumber(){
   unsigned int randNum;
   int randfd = open("/dev/random", O_RDONLY);
   int readResult = read(randfd, &randNum, sizeof(int));
   if (readResult == -1) err();
-  return randNum;
+
+  int returnNum = randNum / 2;
+  return returnNum;
 }
 
 // Creates a semaphore, sets value to 1, returns id
 int createSemaphore(){
-  unsigned int randNum = getRandomNumber();
+  int randNum = getRandomNumber();
 
   int semid = semget(randNum, 1, IPC_CREAT | 0640);
 
@@ -43,7 +45,7 @@ int createSemaphore(){
 
 // Creates shared memory integer and returns the key
 int createSharedInt(){
-  unsigned int randNum = getRandomNumber();
+  int randNum = getRandomNumber();
 
   int shmid = shmget(randNum, sizeof(int), IPC_CREAT | 0640);
   printf("shmid: %d\n", shmid);
@@ -54,7 +56,7 @@ int createSharedInt(){
 // Subserver takes the pastNumber, and interacts with the client to return the summed number
 int playerAdd(int from_client, int to_client, int pastNum){
   // Writing numbers to add to client
-  unsigned int randNum = getRandomNumber() % 200;
+  int randNum = getRandomNumber() % 200;
   int numbers[2];
   numbers[0] = pastNum;
   numbers[1] = randNum;
@@ -91,6 +93,8 @@ int playerAdd(int from_client, int to_client, int pastNum){
   	}
   }
 
+  timer_settime(clk, 0, &stop_timer, NULL);
+
   // Returns the value if the player answered correctly, and -1 if not
   if (answer == pastNum + randNum){
     printf("%d is correct!\n", answer);
@@ -109,7 +113,7 @@ int playGame(int from_client, int to_client, int subserverID){
   if (genPipeFd == -1) err();
 
   // Grabbing shared memory and semaphore info
-  unsigned int* sharedInts = (unsigned int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int readResult = read(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
@@ -120,12 +124,12 @@ int playGame(int from_client, int to_client, int subserverID){
     return 1;
   }
 
-  unsigned int* semaphores = (unsigned int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  int* semaphores = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
-  unsigned int sharedIntKey = *(sharedInts + subserverID);
-  unsigned int semaphoreKey = *(semaphores + subserverID);
+  int sharedIntKey = *(sharedInts + subserverID);
+  int semaphoreKey = *(semaphores + subserverID);
   //printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
 
   // Accessing semaphore and shared memory
@@ -145,6 +149,7 @@ int playGame(int from_client, int to_client, int subserverID){
   // Creating shared memory segment to tell player when they win or lose
   int *winOrLossData = 0;
   int shmkey = getRandomNumber();
+  printf("shmkey: %d\n", shmkey);
   int thisshmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
   if (thisshmid == -1) err();
 
@@ -199,7 +204,7 @@ void gameHub(int numPlayers, int* players){
   // If there are an odd number of players, one random player gets a bye
   int byePlayerIndex = -1;
   if (numPlayers % 2 != 0){
-    unsigned int randNum = getRandomNumber() % numPlayers;
+    int randNum = getRandomNumber() % numPlayers;
     byePlayerIndex = randNum % numPlayers;
   }
   printf("[%d] byePlayerIndex: %d\n", getpid(), byePlayerIndex);
@@ -215,8 +220,8 @@ void gameHub(int numPlayers, int* players){
     }
 
     // Creating shared memory and semaphore for each pair
-    unsigned int sharedMemoryKey = createSharedInt();
-    unsigned int semaphoreKey = createSemaphore();
+    int sharedMemoryKey = createSharedInt();
+    int semaphoreKey = createSemaphore();
 
     *(sharedInts + i) = sharedMemoryKey;
     *(sharedInts + i + nextPlayer) = sharedMemoryKey;
@@ -279,7 +284,7 @@ void initializeGame(){
       to_client = subserver_connect( from_client );
 
       playGame(from_client, to_client, subserverID);
-      printf("someone is exiting\n");
+     // printf("someone is exiting\n");
       close(to_client);
       close(from_client);
       exit(0);
@@ -288,7 +293,7 @@ void initializeGame(){
 
   // Only main server now. Begins the real :) gameplay
   gameHub(numPlayers, players);
-  printf("someone is exiting\n");
+ // printf("someone is exiting\n");
   return;
 }
 
