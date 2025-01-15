@@ -26,6 +26,14 @@ int stringToNum(char* string, int size){
   return (atoi(num));
 }
 
+int wonOrLost(int shmid){
+  int * data;
+  data = shmat(shmid, 0, 0);
+  int result = *data;
+  shmdt(data);
+  return result;
+}
+
 int main() {
   signal(SIGINT, sighandler);
   int to_server;
@@ -33,30 +41,32 @@ int main() {
   //printf("y u no work client\n");
 
   from_server = client_handshake( &to_server );
-  int initNum = -1;
-  int writeResult = write(to_server, &initNum, sizeof(int));
-  if (writeResult == -1) err();
+
+  // Accessing shared memory to tell if won or lost
+  int shmkey;
+  int readResult = read(from_server, &shmkey, sizeof(int));
+  if (readResult == -1) err();
+
+  int shmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
 
   while (1){
-    // Reading in numbers from server
-    int numbers[2];
-    int readResult = read(from_server, numbers, 2*sizeof(int));
-    if (readResult == -1) err();
-
-    // Checks if you've won or lost
-    if (*(numbers) == VICTORY){
+    // Checking if the game has ended
+    int result = wonOrLost(shmid);
+    if (result){
+      if (result == VICTORY){
     	printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
-    	close(to_server);
-    	close(from_server);
-    	exit(0);
-    }
-    else if (*(numbers) == LOSS){
+      }
+      else if (result == LOSS){
     	printf("Sorry you ran out of time, or your answer was incorrect. You lose.\n");
-    	close(to_server);
-    	close(from_server);
-    	exit(0);
+      }
+      close(to_server);
+      close(from_server);
+      exit(0);
     }
-    
+
+    int numbers[2];
+    readResult = read(from_server, numbers, 2*sizeof(int));
+    if (readResult == -1) err();
 
     // Taking answer from player and turning it into an int
     printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
@@ -66,7 +76,7 @@ int main() {
 
     // Writing answer to the server
     printf("answer inputted: %d\n", answer);
-    writeResult = write(to_server, &answer, sizeof(int));
+    int writeResult = write(to_server, &answer, sizeof(int));
     if (writeResult == -1) err();
   }
 }

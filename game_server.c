@@ -113,6 +113,19 @@ int playGame(int from_client, int to_client, int subserverID){
   int * data = 0;
   data = shmat(shmid, 0, 0);
 
+  // Creating shared memory segment to tell player when they win or lose
+  int *winOrLossData = 0;
+  int shmkey = getRandomNumber();
+  int thisshmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
+  if (thisshmid == -1) err();
+
+  winOrLossData = shmat(thisshmid, 0, 0);
+  *winOrLossData = 0;
+
+  // Writing shmkey to client so they know how to access the shared memory
+  int thisWriteResult = write(to_client, &shmkey, sizeof(int));
+  if (thisWriteResult == -1) err();
+
   // Begins the game by downing the semaphore, accessing the client answer, then upping the semaphore
   while (1){
     sb.sem_op = DOWN;
@@ -120,9 +133,7 @@ int playGame(int from_client, int to_client, int subserverID){
 
     // Check if player won
     if (*data == VICTORY){
-      int dataToSend[] = {VICTORY, VICTORY};
-      int writeResult = write(to_client, dataToSend, 2*sizeof(int));
-      if (writeResult == -1) err();
+      *winOrLossData = VICTORY;
       return 1;
     }
     // if result is positive, the player answered correctly. If result == -1, the player did not
@@ -135,9 +146,7 @@ int playGame(int from_client, int to_client, int subserverID){
       // Turns shared memory to victory so opponent knows they've won
       *data = VICTORY;
       // Tell player they lost
-      int dataToSend[] = {LOSS, LOSS};
-      int writeResult = write(to_client, dataToSend, 2*sizeof(int));
-      if (writeResult == -1) err();
+      *winOrLossData = LOSS;
       sb.sem_op = UP;
       semop(semid, &sb, 1);
       return -1;
