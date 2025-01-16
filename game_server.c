@@ -54,7 +54,8 @@ int createSharedInt(){
 }
 
 // Subserver takes the pastNumber, and interacts with the client to return the summed number
-int playerAdd(int from_client, int to_client, int pastNum){
+int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
+
   // Writing numbers to add to client
   int randNum = getRandomNumber() % 200;
   int numbers[2];
@@ -86,6 +87,7 @@ int playerAdd(int from_client, int to_client, int pastNum){
   if (readResult == -1){
   	if (errno == EINTR){
   		printf("Ran out of time.\n");
+                kill(playerPID, SIGQUIT);
   		return LOSS;
   	}
   	else {
@@ -156,6 +158,11 @@ int playGame(int from_client, int to_client, int subserverID){
   winOrLossData = shmat(thisshmid, 0, 0);
   *winOrLossData = 0;
 
+  // Reading PID from client
+  int playerPID;
+  readResult = read(from_client, &playerPID, sizeof(int));
+  if (readResult == -1) err();
+
   // Writing shmkey to client so they know how to access the shared memory
   int thisWriteResult = write(to_client, &shmkey, sizeof(int));
   if (thisWriteResult == -1) err();
@@ -173,7 +180,7 @@ int playGame(int from_client, int to_client, int subserverID){
     }
     // if result is positive, the player answered correctly. If result == -1, the player did not
     // answer correctly and they return -1, and set *data = -1 to let opponent know they won
-    int result = playerAdd(from_client, to_client, *data);
+    int result = playerAdd(playerPID, from_client, to_client, *data);
 
     *data = result;
     printf("result: %d\n", result);

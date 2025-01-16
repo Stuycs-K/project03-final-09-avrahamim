@@ -4,6 +4,10 @@ static void sighandler(int signo){
   if (signo == SIGINT){
     exit(0);
   }
+  if (signo == SIGQUIT){
+    printf("Sorry, you ran out of time. You lose.\n");
+    exit(0);
+  }
 }
 
 void err(){
@@ -36,11 +40,17 @@ int wonOrLost(int shmid){
 
 int main() {
   signal(SIGINT, sighandler);
+  signal(SIGQUIT, sighandler);
   int to_server;
   int from_server;
   //printf("y u no work client\n");
 
   from_server = client_handshake( &to_server );
+
+  //Writing PID to client
+  int pid = getpid();
+  int writeResult = write(to_server, &pid, sizeof(int));
+  if (writeResult == -1) err();
 
   // Accessing shared memory to tell if won or lost
   int shmkey;
@@ -52,14 +62,15 @@ int main() {
   int shmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
 
   while (1){
-    // Checking if the game has ended
+  // Checking if the game has ended
     int result = wonOrLost(shmid);
-    if (result){
+    printf("ended?: %d\n", result);
+    if (result != 0){
       if (result == VICTORY){
-    	printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
+        printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
       }
       else if (result == LOSS){
-    	printf("Sorry you ran out of time, or your answer was incorrect. You lose.\n");
+        printf("Sorry your answer was incorrect. You lose.\n");
       }
       close(to_server);
       close(from_server);
@@ -70,15 +81,30 @@ int main() {
     readResult = read(from_server, numbers, 2*sizeof(int));
     if (readResult == -1) err();
 
+    // Checking if the game has ended
+    result = wonOrLost(shmid);
+    printf("ended?: %d\n", result);
+    if (result != 0){
+      if (result == VICTORY){
+        printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
+      }
+      else if (result == LOSS){
+        printf("Sorry you ran out of time, or your answer was incorrect. You lose.\n");
+      }
+      close(to_server);
+      close(from_server);
+      exit(0);
+    }
+
     // Taking answer from player and turning it into an int
-    printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
+   printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
     char numberInputted[20];
     fgets(numberInputted, 20, stdin);
     int answer = stringToNum(numberInputted, 20);
 
     // Writing answer to the server
     printf("answer inputted: %d\n", answer);
-    int writeResult = write(to_server, &answer, sizeof(int));
+    writeResult = write(to_server, &answer, sizeof(int));
     if (writeResult == -1) err();
   }
 }
