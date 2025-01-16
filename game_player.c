@@ -30,17 +30,12 @@ int stringToNum(char* string, int size){
   return (atoi(num));
 }
 
-int wonOrLost(int shmid){
-  int * data;
-  data = shmat(shmid, 0, 0);
-  int result = *data;
-  shmdt(data);
-  return result;
-}
-
 int main() {
   signal(SIGINT, sighandler);
   signal(SIGQUIT, sighandler);
+  signal(SIGTERM, sighandler);
+
+  printf("[%d]\n", getpid());
   int to_server;
   int from_server;
   //printf("y u no work client\n");
@@ -52,48 +47,24 @@ int main() {
   int writeResult = write(to_server, &pid, sizeof(int));
   if (writeResult == -1) err();
 
-  // Accessing shared memory to tell if won or lost
-  int shmkey;
-  int readResult = read(from_server, &shmkey, sizeof(int));
-  if (readResult == -1) err();
-
-  printf("shmkey: %d\n", shmkey);
-
-  int shmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
-
   while (1){
-  // Checking if the game has ended
-    int result = wonOrLost(shmid);
-    printf("ended?: %d\n", result);
-    if (result != 0){
-      if (result == VICTORY){
-        printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
-      }
-      else if (result == LOSS){
-        printf("Sorry your answer was incorrect. You lose.\n");
-      }
-      close(to_server);
-      close(from_server);
-      exit(0);
-    }
-
     int numbers[2];
-    readResult = read(from_server, numbers, 2*sizeof(int));
+    int readResult = read(from_server, numbers, 2*sizeof(int));
     if (readResult == -1) err();
 
     // Checking if the game has ended
-    result = wonOrLost(shmid);
-    printf("ended?: %d\n", result);
-    if (result != 0){
-      if (result == VICTORY){
-        printf("CONGRATULATIONS! Your opponent failed, and you win this round.\n");
+    printf("ended?: %d\n", numbers[0]);
+    if (numbers[0] == LOSS || numbers[0] == VICTORY ){
+      if (numbers[0] == VICTORY){
+        printf("CONGRATULATIONS! Your opponent failed, and you win this round. Wait until your next round begins...\n");
+        continue;
       }
-      else if (result == LOSS){
-        printf("Sorry you ran out of time, or your answer was incorrect. You lose.\n");
+      else if (numbers[0] == LOSS){
+        printf("Sorry, your answer was incorrect. You lose.\n");
+        close(from_server);
+        close(to_server);
+        exit(0);
       }
-      close(to_server);
-      close(from_server);
-      exit(0);
     }
 
     // Taking answer from player and turning it into an int

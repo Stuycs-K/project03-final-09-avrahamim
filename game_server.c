@@ -8,7 +8,7 @@ static void sighandler(int signo){
 }
 
 void err(){
-  printf("Errno: %d\n", errno);
+  printf("[%d] Errno: %d\n", getpid(), errno);
   printf("Error: %s\n", strerror(errno));
   exit(0);
 }
@@ -86,9 +86,9 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
   int readResult = read(from_client, &answer, sizeof(int));
   if (readResult == -1){
   	if (errno == EINTR){
-  		printf("Ran out of time.\n");
+  		printf("[%d] Ran out of time.\n", getpid());
                 kill(playerPID, SIGQUIT);
-  		return LOSS;
+  		return TIMELOSS;
   	}
   	else {
   		err();
@@ -99,11 +99,11 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
 
   // Returns the value if the player answered correctly, and -1 if not
   if (answer == pastNum + randNum){
-    printf("%d is correct!\n", answer);
+    printf("[%d] %d is correct!\n",getpid(), answer);
     return answer;
   }
   else {
-    printf("%d is incorrect.\n", answer);
+    printf("[%d] %d is incorrect.\n", getpid(), answer);
     return LOSS;
   }
 }
@@ -114,10 +114,14 @@ int playGame(int from_client, int to_client, int subserverID){
   int genPipeFd = open(GENPIPE, O_RDONLY);
   if (genPipeFd == -1) err();
 
+  printf("[%d] past opening\n", getpid());
+
   // Grabbing shared memory and semaphore info
   int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int readResult = read(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
+
+  printf("[%d] past reading shm\n", getpid());
 
   sleep(1);
 
@@ -130,9 +134,11 @@ int playGame(int from_client, int to_client, int subserverID){
   readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
+  printf("[%d] past reading sem\n", getpid());
+
   int sharedIntKey = *(sharedInts + subserverID);
   int semaphoreKey = *(semaphores + subserverID);
-  //printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
+  printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
 
   // Accessing semaphore and shared memory
   int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0640);
@@ -148,24 +154,12 @@ int playGame(int from_client, int to_client, int subserverID){
   int * data = 0;
   data = shmat(shmid, 0, 0);
 
-  // Creating shared memory segment to tell player when they win or lose
-  int *winOrLossData = 0;
-  int shmkey = getRandomNumber();
-  printf("shmkey: %d\n", shmkey);
-  int thisshmid = shmget(shmkey, sizeof(int), IPC_CREAT | 0640);
-  if (thisshmid == -1) err();
-
-  winOrLossData = shmat(thisshmid, 0, 0);
-  *winOrLossData = 0;
-
   // Reading PID from client
   int playerPID;
   readResult = read(from_client, &playerPID, sizeof(int));
   if (readResult == -1) err();
 
-  // Writing shmkey to client so they know how to access the shared memory
-  int thisWriteResult = write(to_client, &shmkey, sizeof(int));
-  if (thisWriteResult == -1) err();
+  sleep(2);
 
   // Begins the game by downing the semaphore, accessing the client answer, then upping the semaphore
   while (1){
@@ -174,8 +168,10 @@ int playGame(int from_client, int to_client, int subserverID){
 
     // Check if player won
     if (*data == VICTORY){
-      printf("someone won\n");
-      *winOrLossData = VICTORY;
+      printf("[%d] won\n", getpid());
+      int victory[] = {VICTORY, VICTORY};
+      int writeResult = write(to_client, victory, 2*sizeof(int));
+      if (writeResult == -1) err();
       return 1;
     }
     // if result is positive, the player answered correctly. If result == -1, the player did not
@@ -183,13 +179,22 @@ int playGame(int from_client, int to_client, int subserverID){
     int result = playerAdd(playerPID, from_client, to_client, *data);
 
     *data = result;
-    printf("result: %d\n", result);
+    printf("[%d] result: %d\n",getpid(), result);
+    if (result == TIMELOSS){
+      *data = VICTORY;
+      printf("[%d] timeloss\n", getpid());
+      sb.sem_op = UP;
+      semop(semid, &sb, 1);
+      return -1;
+    }
     if (result == LOSS){
       // Turns sharedInt to victory so opponent knows they've won
       *data = VICTORY;
-      printf("someone lost\n");
+      printf("[%d] someone lost\n", getpid());
       // Tell player they lost
-      *winOrLossData = LOSS;
+      int loss[] = {LOSS, LOSS};
+      int writeResult = write(to_client, loss, 2*sizeof(int));
+      if (writeResult == -1) err();
       // Up the semaphore so the opponent can access their loss
       sb.sem_op = UP;
       semop(semid, &sb, 1);
@@ -258,9 +263,14 @@ void gameHub(int numPlayers, int* players){
     if (writeResult == -1) err();
   }
 
-  int status = 0;
-  int* statusP = &status;
-  wait(statusP);
+  for (int i = 0; i < numPlayers; i++){
+    int statusThing = 0;
+    int* status = &statusThing;
+    int returnPID = wait(status);
+    printf("returnPID: %d\n", returnPID);
+  }
+  numPlayers = (numPlayers + 1) / 2;
+
 }
 
 void initializeGame(){
@@ -290,7 +300,7 @@ void initializeGame(){
       subserverID = numPlayers;
       to_client = subserver_connect( from_client );
 
-      playGame(from_client, to_client, subserverID);
+      int result = playGame(from_client, to_client, subserverID);
      // printf("someone is exiting\n");
       close(to_client);
       close(from_client);
