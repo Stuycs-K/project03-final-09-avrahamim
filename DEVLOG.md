@@ -36,4 +36,6 @@ Wrote client-side operations - reading from stdin and processing data 0.5 hrs
 Wrote winning and losing code--telling the players whether they won or lost, what to do if that happens. 0.75 hrs
 Used shared memory to indicate result to players - 0.2 hrs
 
-
+### 2025-01-15 - Game ending
+Wrote client-side and server-side instructions for how to proceed after a player answers incorrectly - 0.75 hrs
+Completely restructured how server writes data to clients. 1.5 hrs
