@@ -53,6 +53,16 @@ int createSharedInt(){
   return shmid;
 }
 
+// Checks if the given pid is still alive in the game
+int stillAlive(int pid, int* pidsThatDied, int lenList){
+  for (int i = 0; i < lenList; i++){
+  	if (pid == *(pidsThatDied + i)){
+  		return 0;
+  	}
+  }
+  return 1;
+}
+
 // Subserver takes the pastNumber, and interacts with the client to return the summed number
 int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
 
@@ -221,6 +231,7 @@ void gameHub(int numPlayers, int* players){
   }
   printf("[%d] byePlayerIndex: %d\n", getpid(), byePlayerIndex);
 
+  // Assigning shared memory and semaphore to players, or bye
   for (int i = 0; i < numPlayers; i+=2){
     int nextPlayer = 1;
     if (i == byePlayerIndex){
@@ -245,6 +256,9 @@ void gameHub(int numPlayers, int* players){
     }
   }
 
+  sleep(2);
+
+// Writing shared memory and semaphores to all subservers
   for (int i = 0; i < numPlayers; i++){
     printf("[%d] SharedMemoryKey: %u. SemaphoreKey: %u\n", getpid(), *(sharedInts + i), *(semaphores + i));
   }
@@ -263,14 +277,44 @@ void gameHub(int numPlayers, int* players){
     if (writeResult == -1) err();
   }
 
-  for (int i = 0; i < numPlayers; i++){
+  // Waiting for all the games to finish
+  int returnPIDS[newNumPlayers];
+  
+  for (int i = 0; i < newNumPlayers; i++){
     int statusThing = 0;
     int* status = &statusThing;
     int returnPID = wait(status);
-    printf("returnPID: %d\n", returnPID);
+    returnPIDS[i] = returnPID;
   }
-  numPlayers = (numPlayers + 1) / 2;
 
+  // Giving all subservers new subserverIDs to connect to the next game
+  int newNumPlayers = (numPlayers + 1) / 2;
+
+  int *newSubserverIDS = (int*)calloc(MAX_PLAYERS, sizeof(int));
+  int count = 0;
+  for (int i = 0; i < numPlayers; i++){
+  	if (stillAlive(*(players + i), returnPIDS, newNumPlayers)){
+  		*(newSubserverIDS+i) = count;
+  		count++;
+  	}
+  	else {
+  		*(newSubserverIDS+i) = -1;
+  	}
+  }
+
+  // printf("count: %d and newNumPlayers: %d (should be equal)\n", count, newNumPlayers);
+  // for (int i = 0; i < numPlayers; i++){
+  	// printf("pid: %d newID: %d\n", *(players + i), *(newSubserverIDS + i));
+  // }
+
+  // Writing new subserverIDs to all winners
+
+  for (int i = 0; i < newNumPlayers; i++){
+      int writeResult = write(genPipeFd, newSubserverIDS, MAX_PLAYERS * sizeof(int));
+      if (writeResult == -1) err();
+    }
+
+   // gameHub(newNumPlayers, players)
 }
 
 void initializeGame(){
