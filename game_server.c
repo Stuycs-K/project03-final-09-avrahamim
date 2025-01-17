@@ -63,6 +63,19 @@ int stillAlive(int pid, int* pidsThatDied, int lenList){
   return 1;
 }
 
+// Makes a new pid list with only the remaining players
+int* getNewPlayerList(int* players, int* playersThatDied, int lenList){
+  int newCount = 0;
+  int* newPlayers = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+  for (int i = 0; i < lenList; i++){
+    if (stillAlive(*(players + i), playersThatDied, lenList)){
+      *(newPlayers + newCount) = *(players + i);
+      newCount++;
+    }
+  }
+  return newPlayers;
+}
+
 // Subserver takes the pastNumber, and interacts with the client to return the summed number
 int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
 
@@ -97,7 +110,7 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
   if (readResult == -1){
   	if (errno == EINTR){
   		printf("[%d] Ran out of time.\n", getpid());
-                kill(playerPID, SIGQUIT);
+                kill(playerPID, SIGUSR1);
   		return TIMELOSS;
   	}
   	else {
@@ -119,12 +132,18 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
 }
 
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
-int playGame(int from_client, int to_client, int subserverID){
-  //printf("[%d] : %d\n", getpid(), subserverID);
-  int genPipeFd = open(GENPIPE, O_RDONLY);
-  if (genPipeFd == -1) err();
+int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
+  if (subserverID == ULTIMATEVICTORY){
+    // Reading PID from client
+    int playerPID;
+    int readResult = read(from_client, &playerPID, sizeof(int));
+    if (readResult == -1) err();
+    kill(playerPID, SIGUSR2);
+    return -1;
+  }
 
-  printf("[%d] past opening\n", getpid());
+  sleep(2);
+
 
   // Grabbing shared memory and semaphore info
   int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
@@ -133,7 +152,7 @@ int playGame(int from_client, int to_client, int subserverID){
 
   printf("[%d] past reading shm\n", getpid());
 
-  sleep(1);
+  sleep(2);
 
   // Byes automatically advance
   if (*(sharedInts + subserverID) == 0){
@@ -164,10 +183,11 @@ int playGame(int from_client, int to_client, int subserverID){
   int * data = 0;
   data = shmat(shmid, 0, 0);
 
-  // Reading PID from client
-  int playerPID;
+ // Reading PID from client
+  int playerPID = 0;
   readResult = read(from_client, &playerPID, sizeof(int));
   if (readResult == -1) err();
+
 
   sleep(2);
 
@@ -218,7 +238,7 @@ int playGame(int from_client, int to_client, int subserverID){
 }
 
 // This is where the main server organizes the participants to play against each other, organizes results
-void gameHub(int numPlayers, int* players){
+void gameHub(int numPlayers, int* players, int genPipeFd){
   printf("[%d] numPlayers: %d\n", getpid(), numPlayers);
   int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int* semaphores = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
@@ -263,9 +283,6 @@ void gameHub(int numPlayers, int* players){
     printf("[%d] SharedMemoryKey: %u. SemaphoreKey: %u\n", getpid(), *(sharedInts + i), *(semaphores + i));
   }
 
-  int genPipeFd = open(GENPIPE, O_WRONLY);
-  if (genPipeFd == -1) err();
-
   for (int i = 0; i < numPlayers; i++){
     int writeResult = write(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
     if (writeResult == -1) err();
@@ -277,15 +294,19 @@ void gameHub(int numPlayers, int* players){
     if (writeResult == -1) err();
   }
 
+
   // Waiting for all the games to finish
-  int returnPIDS[newNumPlayers];
+  int returnPIDS[numPlayers / 2];
   
-  for (int i = 0; i < newNumPlayers; i++){
+  for (int i = 0; i < numPlayers / 2; i++){
     int statusThing = 0;
     int* status = &statusThing;
     int returnPID = wait(status);
     returnPIDS[i] = returnPID;
+    printf("returnPID: %d\n", returnPID);
   }
+
+  printf("finished waiting on children to return\n");
 
   // Giving all subservers new subserverIDs to connect to the next game
   int newNumPlayers = (numPlayers + 1) / 2;
@@ -302,6 +323,8 @@ void gameHub(int numPlayers, int* players){
   	}
   }
 
+  int* newPlayers = getNewPlayerList(players, returnPIDS, numPlayers);
+
   // printf("count: %d and newNumPlayers: %d (should be equal)\n", count, newNumPlayers);
   // for (int i = 0; i < numPlayers; i++){
   	// printf("pid: %d newID: %d\n", *(players + i), *(newSubserverIDS + i));
@@ -309,12 +332,35 @@ void gameHub(int numPlayers, int* players){
 
   // Writing new subserverIDs to all winners
 
+  sleep(2);
+
   for (int i = 0; i < newNumPlayers; i++){
+      printf("player %d still alive\n", *(newPlayers + i));
+      // If game ended
+      if (newNumPlayers <= 1){
+        for (int j = 0; j < numPlayers; j++){
+          *(newSubserverIDS + j) = ULTIMATEVICTORY;
+        }
+      }
       int writeResult = write(genPipeFd, newSubserverIDS, MAX_PLAYERS * sizeof(int));
       if (writeResult == -1) err();
     }
 
-   // gameHub(newNumPlayers, players)
+   printf("count: %d and newNumPlayers: %d (should be equal)\n", count, newNumPlayers);
+   for (int i = 0; i < numPlayers; i++){
+         printf("pid: %d newID: %d\n", *(players + i), *(newSubserverIDS + i));
+   }
+
+// If game has ended
+   if (newNumPlayers <= 1){
+     sleep(2);
+     return;
+   }
+
+   sleep(3);
+
+
+   gameHub(newNumPlayers, newPlayers, genPipeFd);
 }
 
 void initializeGame(){
@@ -342,9 +388,20 @@ void initializeGame(){
     // Subserver process. Finish connecting subserver to client, send subserver and client off to interact
     if (!forkResult){
       subserverID = numPlayers;
+      printf("[%d] subserverID: %d\n", getpid(), subserverID);
       to_client = subserver_connect( from_client );
 
-      int result = playGame(from_client, to_client, subserverID);
+      int genPipeFd = open(GENPIPE, O_RDONLY);
+      if (genPipeFd == -1) err();
+      while (1){
+        int result = playGame(from_client, to_client, subserverID, genPipeFd);
+        if (result == -1) break;
+        int * subserverIDS = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+        int readResult = read(genPipeFd, subserverIDS,MAX_PLAYERS * sizeof(int));
+        subserverID = *(subserverIDS + subserverID);
+        if (readResult == -1) err();
+        printf("[%d] new subserverID: %d\n", getpid(), subserverID);
+      }
      // printf("someone is exiting\n");
       close(to_client);
       close(from_client);
@@ -353,7 +410,10 @@ void initializeGame(){
   }
 
   // Only main server now. Begins the real :) gameplay
-  gameHub(numPlayers, players);
+  int genPipeFd = open(GENPIPE, O_WRONLY);
+  if (genPipeFd == -1) err();
+
+  gameHub(numPlayers, players, genPipeFd);
  // printf("someone is exiting\n");
   return;
 }

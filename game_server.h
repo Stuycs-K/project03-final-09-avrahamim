@@ -18,6 +18,7 @@
 #define VICTORY -10 //Randomly chosen numbers that cannot
 #define LOSS -20    //possibly match any game numbers
 #define TIMELOSS -30
+#define ULTIMATEVICTORY -40
 
 union semun{
   int val;

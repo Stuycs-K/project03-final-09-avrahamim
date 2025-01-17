@@ -4,8 +4,12 @@ static void sighandler(int signo){
   if (signo == SIGINT){
     exit(0);
   }
-  if (signo == SIGQUIT){
+  if (signo == SIGUSR1){
     printf("Sorry, you ran out of time. You lose.\n");
+    exit(0);
+  }
+  if (signo == SIGUSR2){
+    printf("CONGRATS! You are the ultimate victor!\n");
     exit(0);
   }
 }
@@ -32,8 +36,8 @@ int stringToNum(char* string, int size){
 
 int main() {
   signal(SIGINT, sighandler);
-  signal(SIGQUIT, sighandler);
-  signal(SIGTERM, sighandler);
+  signal(SIGUSR1, sighandler);
+  signal(SIGUSR2, sighandler);
 
   printf("[%d]\n", getpid());
   int to_server;
@@ -57,6 +61,9 @@ int main() {
     if (numbers[0] == LOSS || numbers[0] == VICTORY ){
       if (numbers[0] == VICTORY){
         printf("CONGRATULATIONS! Your opponent failed, and you win this round. Wait until your next round begins...\n");
+        // Rewriting pid to client
+        writeResult = write(to_server, &pid, sizeof(int));
+        if (writeResult == -1) err();
         continue;
       }
       else if (numbers[0] == LOSS){
