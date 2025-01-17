@@ -21,4 +21,21 @@ Began work on subservers piping to each other info. o.3 hrs
 ### 2025-01-09 - Absence
 Absent from class, unable to work at home.
 
+### 2025-01-10 - Restructure
+Took down subserver pipe communication with each other. 0.2 hrs
+Began working with semaphores and shared memory instead to communicate info between subservers. 1 hr
 
+### 2025-01-11/12 - Accessing
+Subservers worked to access their respective semaphores and shared memory segments to allow the game to begin. 1.5 hrs
+
+### 2025-01-13 - User Interface
+Wrote client to server communication via pipes - 0.5 hrs
+Wrote client-side operations - reading from stdin and processing data 0.5 hrs
+
+### 2025-01-14 - Shared Memory Restructuring
+Wrote winning and losing code--telling the players whether they won or lost, what to do if that happens. 0.75 hrs
+Used shared memory to indicate result to players - 0.2 hrs
+
+### 2025-01-15 - Game ending
+Wrote client-side and server-side instructions for how to proceed after a player answers incorrectly - 0.75 hrs
+Completely restructured how server writes data to clients. 1.5 hrs
