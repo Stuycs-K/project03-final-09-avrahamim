@@ -32,7 +32,7 @@ int getRandomNumber(){
 int createSemaphore(){
   int randNum = getRandomNumber();
 
-  int semid = semget(randNum, 1, IPC_CREAT | 0640);
+  int semid = semget(randNum, 1, IPC_CREAT | 0666);
 
   union semun us;
   us.val = 1;
@@ -47,7 +47,7 @@ int createSemaphore(){
 int createSharedInt(){
   int randNum = getRandomNumber();
 
-  int shmid = shmget(randNum, sizeof(int), IPC_CREAT | 0640);
+  int shmid = shmget(randNum, sizeof(int), IPC_CREAT | 0666);
   printf("shmid: %d\n", shmid);
 
   return shmid;
@@ -74,6 +74,20 @@ int* getNewPlayerList(int* players, int* playersThatDied, int lenList){
     }
   }
   return newPlayers;
+}
+
+int stringToNum(char* string, int size){
+  char* num = (char*)(calloc(size, sizeof(char)));
+  int numIndex = 0;
+
+  for (int i = 0; i < size; i++){
+    if (*(string + i) >= '0' && *(string + i) <= '9'){
+      *(num + numIndex) = *(string + i);
+      numIndex++;
+    }
+  }
+
+  return (atoi(num));
 }
 
 // Subserver takes the pastNumber, and interacts with the client to return the summed number
@@ -165,7 +179,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
 
   // Accessing semaphore and shared memory
-  int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0640);
+  int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0666);
   if (shmid == -1) err();
 
   int semid = semget(semaphoreKey, 1, 0);
@@ -375,11 +389,18 @@ void initializeGame(){
   int* players = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int subserverID;
 
-  mkfifo(GENPIPE, 0644);
+  mkfifo(GENPIPE, 0666);
+  chmod(GENPIPE, 0666);
 
-  while (numPlayers < TOTALPLAYERS){
+  char numPlayersEntered[100];
+  printf("Enter the number of players that are going to play: ");
+  fgets(numPlayersEntered, 100, stdin);
+  int totalPlayers = stringToNum(numPlayersEntered, strlen(numPlayersEntered));
+  
+
+  while (numPlayers < totalPlayers){
     // Waiting for client to connect to server
-    printf("[%d] awaiting %d players:\n", getpid(), TOTALPLAYERS - numPlayers);
+    printf("[%d] awaiting %d players:\n", getpid(), totalPlayers - numPlayers);
     from_client = server_setup();
     signed int forkResult = fork();
 

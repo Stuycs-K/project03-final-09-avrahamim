@@ -11,6 +11,7 @@
   =========================*/
 int server_setup() {
   mkfifo(WKP, 0666);
+  chmod(WKP, 0666);
 
   int fifoFD = open(WKP, O_RDONLY);
 //  printf("from_client fd: %d\n", fifoFD);
@@ -123,6 +124,7 @@ int client_handshake(int *to_server) {
   char fifoPath[HANDSHAKE_BUFFER_SIZE];
   sprintf(fifoPath, "%d", pid);
   mkfifo(fifoPath, 0666);
+  chmod(fifoPath, 0666);
   // for (int i = 0; i < strlen(fifoPath); i++){
   //   printf("%c\n", fifoPath[i]);
   // }
