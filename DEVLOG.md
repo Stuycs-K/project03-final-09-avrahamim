@@ -39,3 +39,7 @@ Used shared memory to indicate result to players - 0.2 hrs
 ### 2025-01-15 - Game ending
 Wrote client-side and server-side instructions for how to proceed after a player answers incorrectly - 0.75 hrs
 Completely restructured how server writes data to clients. 1.5 hrs
+
+### 2025-01-15 - Next rounds + Debugging
+After the first round finishes, variables reset and the next round begins with only the remaining players - 1.0 hrs
+Debugged everything from bye players to player-side mechanics to winning screen - 2.0 hrs
