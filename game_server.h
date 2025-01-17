@@ -12,13 +12,14 @@
 #define READ 0
 #define WRITE 1
 #define GENPIPE "generalServerPipe"
-#define TOTALPLAYERS 4
+#define TOTALPLAYERS 3
 #define DOWN -1
 #define UP 1
 #define VICTORY -10 //Randomly chosen numbers that cannot
 #define LOSS -20    //possibly match any game numbers
 #define TIMELOSS -30
 #define ULTIMATEVICTORY -40
+#define BYE -50
 
 union semun{
   int val;

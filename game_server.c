@@ -154,11 +154,6 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
 
   sleep(2);
 
-  // Byes automatically advance
-  if (*(sharedInts + subserverID) == 0){
-    return 1;
-  }
-
   int* semaphores = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
@@ -188,6 +183,14 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   readResult = read(from_client, &playerPID, sizeof(int));
   if (readResult == -1) err();
 
+  // Byes automatically advance
+  if (*(sharedInts + subserverID) == 0){
+    int toClient[] = {BYE, BYE};
+    int writeResult = write(to_client, toClient, 2*sizeof(int));
+    if (writeResult == -1) err();
+    sleep(2);
+    return 1;
+  }
 
   sleep(2);
 
@@ -195,6 +198,8 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   while (1){
     sb.sem_op = DOWN;
     semop(semid, &sb, 1);
+
+    printf("[%d] downed the semaphore\n", getpid());
 
     // Check if player won
     if (*data == VICTORY){
@@ -397,6 +402,7 @@ void initializeGame(){
         int result = playGame(from_client, to_client, subserverID, genPipeFd);
         if (result == -1) break;
         int * subserverIDS = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
+        printf("got here\n");
         int readResult = read(genPipeFd, subserverIDS,MAX_PLAYERS * sizeof(int));
         subserverID = *(subserverIDS + subserverID);
         if (readResult == -1) err();

@@ -6,3 +6,4 @@
 #include <sys/types.h>
 #define VICTORY -10
 #define LOSS -20
+#define BYE -50

@@ -56,6 +56,15 @@ int main() {
     int readResult = read(from_server, numbers, 2*sizeof(int));
     if (readResult == -1) err();
 
+    // Checking BYE
+    if (numbers[0] == BYE){
+      printf("You have a bye! Wait for your next round.\n");
+      // Rewriting pid to client
+      writeResult = write(to_server, &pid, sizeof(int));
+      if (writeResult == -1) err();
+      continue;
+    }
+
     // Checking if the game has ended
     printf("ended?: %d\n", numbers[0]);
     if (numbers[0] == LOSS || numbers[0] == VICTORY ){
