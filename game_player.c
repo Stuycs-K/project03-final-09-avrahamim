@@ -4,14 +4,6 @@ static void sighandler(int signo){
   if (signo == SIGINT){
     exit(0);
   }
-  if (signo == SIGUSR1){
-    printf("Sorry, you ran out of time. You lose.\n");
-    exit(0);
-  }
-  if (signo == SIGUSR2){
-    printf("CONGRATS! You are the ultimate victor!\n");
-    exit(0);
-  }
 }
 
 //Just needed a dummy handler
@@ -60,7 +52,7 @@ int getPlayerInput(int to_server){
   char numberInputted[20];
   if (! fgets(numberInputted, 20, stdin)){
     if (errno == EINTR){
-      printf("sorry you ran out of time.\n");
+      printf("Sorry you ran out of time. You lose.\n");
       int timeLoss = TIMELOSS;
       int writeResult = write(to_server, &timeLoss, sizeof(int));
       if (writeResult == -1) err();
@@ -71,17 +63,18 @@ int getPlayerInput(int to_server){
       err();
     }
   }
+  printf("fgets stdin result: %s", numberInputted);
 
   timer_settime(clk, 0, &stop_timer, NULL);
 
-  int answer = stringToNum(numberInputted, 20);
+  int answer = stringToNum(numberInputted, strlen(numberInputted));
   return answer;
 }
 
 int main() {
   signal(SIGINT, sighandler);
-  signal(SIGUSR1, sighandler);
-  signal(SIGUSR2, sighandler);
+
+  char* nextRoundStr = "***************************************\n";
 
   printf("[%d]\n", getpid());
   int to_server;
@@ -102,7 +95,7 @@ int main() {
 
     // Checking BYE
     if (numbers[0] == BYE){
-      printf("You have a bye! Wait for your next round.\n");
+      printf("You have a bye! Wait for your next round.\n%s", nextRoundStr);
       // Rewriting pid to client
       writeResult = write(to_server, &pid, sizeof(int));
       if (writeResult == -1) err();
@@ -113,7 +106,7 @@ int main() {
     printf("ended?: %d\n", numbers[0]);
     if (numbers[0] < 0){
       if (numbers[0] == VICTORY){
-        printf("CONGRATULATIONS! Your opponent failed, and you win this round. Wait until your next round begins...\n");
+        printf("CONGRATULATIONS! Your opponent failed, and you win this round. Wait until your next round begins...\n%s", nextRoundStr);
         // Rewriting pid to client
         writeResult = write(to_server, &pid, sizeof(int));
         if (writeResult == -1) err();
@@ -126,7 +119,7 @@ int main() {
         exit(0);
       }
       else if (numbers[0] == ULTIMATEVICTORY){
-        printf("CONGRATS! You are the ULTIMATE victor. Brag about your math skills to all of your friends.\nWait a minute. You're a math whiz and probably a CS whiz if you're running this program. Statistically, you don't have many friends.\nWell, you can always brag about it to the internet, where nobody cares about you.");
+        printf("%sCONGRATS! You are the ULTIMATE victor. Brag about your math skills to all of your friends.\nWait a minute. You're a math whiz and probably a CS nerd too if you're running this program. Statistically, you don't have many friends. :(\nWell, you can always brag about it to the internet, where nobody cares.\n", nextRoundStr);
         close(from_server);
         close(to_server);
         exit(0);

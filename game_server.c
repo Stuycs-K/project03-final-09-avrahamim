@@ -121,7 +121,7 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
 // This is where the individual games take place. Returns whether this player/subserver combination won against their opponent (1) or lost (0)
 int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   if (subserverID == ULTIMATEVICTORY){
-    // Reading PID from client
+    // Reading PID from client to free it to read its result
     int playerPID;
     int readResult = read(from_client, &playerPID, sizeof(int));
     if (readResult == -1) err();
