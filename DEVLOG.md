@@ -40,6 +40,13 @@ Used shared memory to indicate result to players - 0.2 hrs
 Wrote client-side and server-side instructions for how to proceed after a player answers incorrectly - 0.75 hrs
 Completely restructured how server writes data to clients. 1.5 hrs
 
-### 2025-01-15 - Next rounds + Debugging
+### 2025-01-16 - Next rounds + Debugging
 After the first round finishes, variables reset and the next round begins with only the remaining players - 1.0 hrs
 Debugged everything from bye players to player-side mechanics to winning screen - 2.0 hrs
+
+### 2025-01-17 - Testing on Different Accounts
+Much more debugging of the game this time involving having multiple different accounts able to connect to the program on the same computer, using chmod - 1.0 hrs
+
+### 2025-01-19 - More different accounts and Cleaning up
+Switched infrastructure from server-side timing and "kill" to client-side timing and pipe-writing to ensure multi-account access - 1.5 hrs
+Cleaned up (closed pipes, freed malloced memory, detached variables and closed shared memory and semaphores, etc.) - 1.0 hrs
