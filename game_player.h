@@ -4,6 +4,7 @@
 #include <sys/shm.h>
 #include <sys/ipc.h>
 #include <sys/types.h>
+#include <time.h>
 #define VICTORY -10
 #define LOSS -20
 #define BYE -50

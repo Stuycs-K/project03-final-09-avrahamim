@@ -14,7 +14,7 @@ int server_setup() {
   chmod(WKP, 0666);
 
   int fifoFD = open(WKP, O_RDONLY);
-//  printf("from_client fd: %d\n", fifoFD);
+  //printf("from_client fd: %d\n", fifoFD);
 
   remove(WKP);
   return fifoFD;
@@ -31,7 +31,7 @@ int subserver_connect(int from_client){
 
   // Opening to_client
   *to_client = open(clientFifoPath, O_WRONLY);
- // printf("to_client fd: %d\n", *to_client);
+  printf("to_client fd: %d\n", *to_client);
 
   // Writing SYN_ACK randnum to client
   char synack[HANDSHAKE_BUFFER_SIZE];
@@ -142,7 +142,7 @@ int client_handshake(int *to_server) {
   *from_server = open(fifoPath, O_RDONLY);
 //  printf("from_server fd: %d\n", *from_server);
 
-  remove(fifoPath);
+//  remove(fifoPath);
 
   // Reading SYN_ACK
   char synack[HANDSHAKE_BUFFER_SIZE];

@@ -7,7 +7,6 @@
 #include <sys/types.h>
 #include <sys/sem.h>
 #include <sys/wait.h>
-#include <time.h>
 #define MAX_PLAYERS 100
 #define READ 0
 #define WRITE 1
