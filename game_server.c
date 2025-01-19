@@ -13,11 +13,6 @@ void err(){
   exit(0);
 }
 
-//Just needed a dummy handler
-void sigalrm_handler(int s) {
-    return;
-}
-
 int getRandomNumber(){
   unsigned int randNum;
   int randfd = open("/dev/random", O_RDONLY);
@@ -101,43 +96,21 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
   int writeResult = write(to_client, numbers, 2*sizeof(int));
   if (writeResult == -1) err();
 
-  // Creating timer
-  timer_t clk;
-  int realClock = timer_create(CLOCK_REALTIME, NULL, &clk);
-  if (realClock < 0) err();
-
-  struct sigaction sigalrm_act = {
-   .sa_handler = sigalrm_handler,
-   .sa_flags = 0
-  };
-  sigemptyset(&sigalrm_act.sa_mask);
-  realClock = sigaction(SIGALRM, &sigalrm_act, NULL);
-  if (realClock < 0) {
-    err();
-  }
-
-  timer_settime(clk, 0, &seven_second, NULL);
-
-  // Giving the client time to respond, then checking if it is the write answer.
+  // Reading the response from the client
   int answer;
   int readResult = read(from_client, &answer, sizeof(int));
   if (readResult == -1){
-  	if (errno == EINTR){
-  		printf("[%d] Ran out of time.\n", getpid());
-                kill(playerPID, SIGUSR1);
-  		return TIMELOSS;
-  	}
-  	else {
-  		err();
-  	}
+    err();
   }
 
-  timer_settime(clk, 0, &stop_timer, NULL);
-
-  // Returns the value if the player answered correctly, and -1 if not
+  // Returns the value if the player answered correctly, and the type of loss if not
   if (answer == pastNum + randNum){
     printf("[%d] %d is correct!\n",getpid(), answer);
     return answer;
+  }
+  else if (answer == TIMELOSS){
+    printf("[%d] client timed out.\n", getpid());
+    return TIMELOSS;
   }
   else {
     printf("[%d] %d is incorrect.\n", getpid(), answer);
@@ -152,7 +125,11 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
     int playerPID;
     int readResult = read(from_client, &playerPID, sizeof(int));
     if (readResult == -1) err();
-    kill(playerPID, SIGUSR2);
+
+    int ultVictories[] = {ULTIMATEVICTORY, ULTIMATEVICTORY};
+    int writeResult = write(to_client, ultVictories, 2*sizeof(int));
+    if (writeResult == -1) err();
+    sleep(2);
     return -1;
   }
 
@@ -244,7 +221,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
       int loss[] = {LOSS, LOSS};
       int writeResult = write(to_client, loss, 2*sizeof(int));
       if (writeResult == -1) err();
-      // Up the semaphore so the opponent can access their loss
+      // Up the semaphore so the opponent can access their victory
       sb.sem_op = UP;
       semop(semid, &sb, 1);
       return -1;
@@ -316,7 +293,7 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
 
   // Waiting for all the games to finish
   int returnPIDS[numPlayers / 2];
-  
+
   for (int i = 0; i < numPlayers / 2; i++){
     int statusThing = 0;
     int* status = &statusThing;
@@ -396,7 +373,7 @@ void initializeGame(){
   printf("Enter the number of players that are going to play: ");
   fgets(numPlayersEntered, 100, stdin);
   int totalPlayers = stringToNum(numPlayersEntered, strlen(numPlayersEntered));
-  
+
 
   while (numPlayers < totalPlayers){
     // Waiting for client to connect to server

@@ -14,6 +14,11 @@ static void sighandler(int signo){
   }
 }
 
+//Just needed a dummy handler
+void sigalrm_handler(int s) {
+    return;
+}
+
 void err(){
   printf("Errno: %d\n", errno);
   printf("Error: %s\n", strerror(errno));
@@ -32,6 +37,45 @@ int stringToNum(char* string, int size){
   }
 
   return (atoi(num));
+}
+
+int getPlayerInput(int to_server){
+  // Creating timer
+  timer_t clk;
+  int realClock = timer_create(CLOCK_REALTIME, NULL, &clk);
+  if (realClock < 0) err();
+
+  struct sigaction sigalrm_act = {
+   .sa_handler = sigalrm_handler,
+   .sa_flags = 0
+  };
+  sigemptyset(&sigalrm_act.sa_mask);
+  realClock = sigaction(SIGALRM, &sigalrm_act, NULL);
+  if (realClock < 0) {
+    err();
+  }
+
+  timer_settime(clk, 0, &seven_second, NULL);
+
+  char numberInputted[20];
+  if (! fgets(numberInputted, 20, stdin)){
+    if (errno == EINTR){
+      printf("sorry you ran out of time.\n");
+      int timeLoss = TIMELOSS;
+      int writeResult = write(to_server, &timeLoss, sizeof(int));
+      if (writeResult == -1) err();
+      sleep(2);
+      exit(0);
+    }
+    else {
+      err();
+    }
+  }
+
+  timer_settime(clk, 0, &stop_timer, NULL);
+
+  int answer = stringToNum(numberInputted, 20);
+  return answer;
 }
 
 int main() {
@@ -67,7 +111,7 @@ int main() {
 
     // Checking if the game has ended
     printf("ended?: %d\n", numbers[0]);
-    if (numbers[0] == LOSS || numbers[0] == VICTORY ){
+    if (numbers[0] < 0){
       if (numbers[0] == VICTORY){
         printf("CONGRATULATIONS! Your opponent failed, and you win this round. Wait until your next round begins...\n");
         // Rewriting pid to client
@@ -81,13 +125,17 @@ int main() {
         close(to_server);
         exit(0);
       }
+      else if (numbers[0] == ULTIMATEVICTORY){
+        printf("CONGRATS! You are the ULTIMATE victor. Brag about your math skills to all of your friends.\nWait a minute. You're a math whiz and probably a CS whiz if you're running this program. Statistically, you don't have many friends.\nWell, you can always brag about it to the internet, where nobody cares about you.");
+        close(from_server);
+        close(to_server);
+        exit(0);
+      }
     }
 
     // Taking answer from player and turning it into an int
-   printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
-    char numberInputted[20];
-    fgets(numberInputted, 20, stdin);
-    int answer = stringToNum(numberInputted, 20);
+    printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
+    int answer = getPlayerInput(to_server);
 
     // Writing answer to the server
     printf("answer inputted: %d\n", answer);
