@@ -31,7 +31,6 @@ int subserver_connect(int from_client){
 
   // Opening to_client
   *to_client = open(clientFifoPath, O_WRONLY);
-  printf("to_client fd: %d\n", *to_client);
 
   // Writing SYN_ACK randnum to client
   char synack[HANDSHAKE_BUFFER_SIZE];
