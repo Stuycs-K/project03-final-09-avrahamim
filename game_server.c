@@ -83,7 +83,9 @@ int stringToNum(char* string, int size){
     }
   }
 
-  return (atoi(num));
+  int result = atoi(num);
+  free(num);
+  return result;
 }
 
 // Subserver takes the pastNumber, and interacts with the client to return the summed number
@@ -158,6 +160,9 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   int sharedIntKey = *(sharedInts + subserverID);
   int semaphoreKey = *(semaphores + subserverID);
   printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
+
+  free(sharedInts);
+  free(semaphores);
 
   // Accessing semaphore and shared memory
   int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0666);
@@ -302,6 +307,9 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
     if (writeResult == -1) err();
   }
 
+  free(sharedInts);
+  free(semaphores);
+
 
   // Waiting for all the games to finish
   int returnPIDS[numPlayers / 2];
@@ -342,6 +350,8 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
 
   sleep(2);
 
+  free(players);
+
   for (int i = 0; i < newNumPlayers; i++){
       printf("player %d still alive\n", *(newPlayers + i));
       // If game ended
@@ -359,9 +369,12 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
          printf("pid: %d newID: %d\n", *(players + i), *(newSubserverIDS + i));
    }
 
+  free(newSubserverIDS);
+
 // If game has ended
    if (newNumPlayers <= 1){
      sleep(2);
+     free(newPlayers);
      return;
    }
 
@@ -415,6 +428,7 @@ void initializeGame(){
         printf("got here\n");
         int readResult = read(genPipeFd, subserverIDS,MAX_PLAYERS * sizeof(int));
         subserverID = *(subserverIDS + subserverID);
+        free(subserverIDS);
         if (readResult == -1) err();
         printf("[%d] new subserverID: %d\n", getpid(), subserverID);
       }
