@@ -7,6 +7,9 @@
 #include <sys/types.h>
 #include <sys/sem.h>
 #include <sys/wait.h>
+
+#ifndef SERVER_H
+#define SERVER_H
 #define MAX_PLAYERS 100
 #define READ 0
 #define WRITE 1
@@ -27,3 +30,17 @@ union semun{
   unsigned short *array;
   struct seminfo *__buf;
 };
+
+int getRandomNumber();
+int createSemaphore();
+int createSharedInt();
+
+int stillAlive(int pid, int* pidsThatDied, int lenList);
+int* getNewPlayerList(int* players, int* playersThatDied, int lenList);
+int stringToNum(char* string, int size);
+
+int playerAdd(int playerPID, int from_client, int to_client, int pastNum);
+void gameHub(int numPlayers, int* players, int genPipeFd);
+void initializeGame();
+
+#endif
