@@ -142,7 +142,7 @@ int client_handshake(int *to_server) {
   *from_server = open(fifoPath, O_RDONLY);
 //  printf("from_server fd: %d\n", *from_server);
 
-//  remove(fifoPath);
+  remove(fifoPath);
 
   // Reading SYN_ACK
   char synack[HANDSHAKE_BUFFER_SIZE];

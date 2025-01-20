@@ -19,6 +19,7 @@
 #define TIMELOSS -30 //
 #define ULTIMATEVICTORY -40 //
 #define BYE -50 //
+#define FORFEIT -60 //
 
 union semun{
   int val;

@@ -10,6 +10,7 @@
 #define TIMELOSS -30 //
 #define ULTIMATEVICTORY -40 //
 #define BYE -50 //
+#define FORFEIT -60 //
 
 struct itimerspec seven_second = {
   .it_interval = {.tv_sec = 0, .tv_nsec = 0},

@@ -2,6 +2,7 @@
 static void sighandler(int signo){
   if (signo == SIGINT){
     remove(WKP);
+    remove(GENPIPE);
     exit(0);
   }
   if (signo == SIGPIPE){}
@@ -112,7 +113,10 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
     printf("[%d] client timed out.\n", getpid());
     return TIMELOSS;
   }
-  else {
+  else if (answer == FORFEIT){
+    printf("[%d] client forfeited.\n", getpid());
+    return LOSS;
+  } else {
     printf("[%d] %d is incorrect.\n", getpid(), answer);
     return LOSS;
   }
@@ -139,7 +143,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   // Grabbing shared memory and semaphore info
   int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int readResult = read(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
-  if (readResult == -1) err();
+  if (readResult == -1) { printf("here\n"); err();}
 
   printf("[%d] past reading shm\n", getpid());
 
@@ -198,6 +202,10 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
       int victory[] = {VICTORY, VICTORY};
       int writeResult = write(to_client, victory, 2*sizeof(int));
       if (writeResult == -1) err();
+      // Closing shared memory and semaphore
+      shmdt(data);
+      shmctl(shmid, IPC_RMID, 0);
+      semctl(semid, IPC_RMID, 0);
       return 1;
     }
     // if result is positive, the player answered correctly. If result == -1, the player did not
@@ -211,6 +219,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
       printf("[%d] timeloss\n", getpid());
       sb.sem_op = UP;
       semop(semid, &sb, 1);
+      shmdt(data);
       return -1;
     }
     if (result == LOSS){
@@ -224,6 +233,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
       // Up the semaphore so the opponent can access their victory
       sb.sem_op = UP;
       semop(semid, &sb, 1);
+      shmdt(data);
       return -1;
     }
     sb.sem_op = UP;
@@ -273,6 +283,8 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
   }
 
   sleep(2);
+
+  remove(GENPIPE);
 
 // Writing shared memory and semaphores to all subservers
   for (int i = 0; i < numPlayers; i++){

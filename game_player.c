@@ -1,7 +1,17 @@
 #include "game_player.h"
 
+int to_server = 0;
+int from_server = 0;
+
 static void sighandler(int signo){
   if (signo == SIGINT){
+    int forfeit = FORFEIT;
+    int writeResult = write(to_server, &forfeit, sizeof(int));
+    if (writeResult == -1) printf("big exiting error\n");
+    printf("Forfeiting game.\n");
+    sleep(10);
+    close(to_server);
+    close(from_server);
     exit(0);
   }
 }
@@ -31,7 +41,7 @@ int stringToNum(char* string, int size){
   return (atoi(num));
 }
 
-int getPlayerInput(int to_server){
+int getPlayerInput(){
   // Creating timer
   timer_t clk;
   int realClock = timer_create(CLOCK_REALTIME, NULL, &clk);
@@ -57,13 +67,14 @@ int getPlayerInput(int to_server){
       int writeResult = write(to_server, &timeLoss, sizeof(int));
       if (writeResult == -1) err();
       sleep(2);
+      close(to_server);
+      close(from_server);
       exit(0);
     }
     else {
       err();
     }
   }
-  printf("fgets stdin result: %s", numberInputted);
 
   timer_settime(clk, 0, &stop_timer, NULL);
 
@@ -76,9 +87,6 @@ int main() {
 
   char* nextRoundStr = "***************************************\n";
 
-  printf("[%d]\n", getpid());
-  int to_server;
-  int from_server;
   //printf("y u no work client\n");
 
   from_server = client_handshake( &to_server );
@@ -87,6 +95,7 @@ int main() {
   int pid = getpid();
   int writeResult = write(to_server, &pid, sizeof(int));
   if (writeResult == -1) err();
+    printf("Waiting for round to begin...\n");
 
   while (1){
     int numbers[2];
@@ -99,17 +108,18 @@ int main() {
       // Rewriting pid to client
       writeResult = write(to_server, &pid, sizeof(int));
       if (writeResult == -1) err();
+    printf("Waiting for round to begin...\n");
       continue;
     }
 
     // Checking if the game has ended
-    printf("ended?: %d\n", numbers[0]);
     if (numbers[0] < 0){
       if (numbers[0] == VICTORY){
         printf("CONGRATULATIONS! Your opponent failed, and you win this round. Wait until your next round begins...\n%s", nextRoundStr);
         // Rewriting pid to client
         writeResult = write(to_server, &pid, sizeof(int));
         if (writeResult == -1) err();
+    printf("Waiting for round to begin...\n");
         continue;
       }
       else if (numbers[0] == LOSS){
@@ -128,10 +138,10 @@ int main() {
 
     // Taking answer from player and turning it into an int
     printf("Your task: add %d to %d\n", numbers[0], numbers[1]);
-    int answer = getPlayerInput(to_server);
+    int answer = getPlayerInput();
 
     // Writing answer to the server
-    printf("answer inputted: %d\n", answer);
+    printf("Answer Inputted: %d\n", answer);
     writeResult = write(to_server, &answer, sizeof(int));
     if (writeResult == -1) err();
   }
