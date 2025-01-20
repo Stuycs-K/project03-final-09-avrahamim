@@ -29,12 +29,12 @@ int createSemaphore(){
   int randNum = getRandomNumber();
 
   int semid = semget(randNum, 1, IPC_CREAT | 0666);
+  if (semid == -1) err();
 
   union semun us;
   us.val = 1;
   semctl(semid, 0, SETVAL, us);
 
-  printf("semkey: %u\n", randNum);
 
   return randNum;
 }
@@ -44,9 +44,9 @@ int createSharedInt(){
   int randNum = getRandomNumber();
 
   int shmid = shmget(randNum, sizeof(int), IPC_CREAT | 0666);
-  printf("shmid: %d\n", shmid);
+  if (shmid == -1) err();
 
-  return shmid;
+  return randNum;
 }
 
 // Checks if the given pid is still alive in the game
@@ -108,7 +108,6 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
 
   // Returns the value if the player answered correctly, and the type of loss if not
   if (answer == pastNum + randNum){
-    printf("[%d] %d is correct!\n",getpid(), answer);
     return answer;
   }
   else if (answer == TIMELOSS){
@@ -119,7 +118,7 @@ int playerAdd(int playerPID, int from_client, int to_client, int pastNum){
     printf("[%d] client forfeited.\n", getpid());
     return LOSS;
   } else {
-    printf("[%d] %d is incorrect.\n", getpid(), answer);
+    printf("[%d] lost with answer %d.\n", getpid(), answer);
     return LOSS;
   }
 }
@@ -145,9 +144,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   // Grabbing shared memory and semaphore info
   int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int readResult = read(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
-  if (readResult == -1) { printf("here\n"); err();}
-
-  printf("[%d] past reading shm\n", getpid());
+  if (readResult == -1) err();
 
   sleep(2);
 
@@ -155,11 +152,8 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   readResult = read(genPipeFd, semaphores, MAX_PLAYERS * sizeof(int));
   if (readResult == -1) err();
 
-  printf("[%d] past reading sem\n", getpid());
-
   int sharedIntKey = *(sharedInts + subserverID);
   int semaphoreKey = *(semaphores + subserverID);
-  printf("[%d]. Shared memory: %u. Semaphore: %u\n", getpid(), sharedIntKey, semaphoreKey);
 
   free(sharedInts);
   free(semaphores);
@@ -168,7 +162,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   int shmid = shmget(sharedIntKey, sizeof(int), IPC_CREAT | 0666);
   if (shmid == -1) err();
 
-  int semid = semget(semaphoreKey, 1, 0);
+  int semid = semget(semaphoreKey, 1, IPC_CREAT | 0666);
   struct sembuf sb;
   sb.sem_num = 0;
   sb.sem_flg = SEM_UNDO;
@@ -189,6 +183,9 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
     int writeResult = write(to_client, toClient, 2*sizeof(int));
     if (writeResult == -1) err();
     sleep(2);
+    shmdt(data);
+    shmctl(shmid, IPC_RMID, 0);
+    semctl(semid, IPC_RMID, 0);
     return 1;
   }
 
@@ -198,8 +195,6 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   while (1){
     sb.sem_op = DOWN;
     semop(semid, &sb, 1);
-
-    printf("[%d] downed the semaphore\n", getpid());
 
     // Check if player won
     if (*data == VICTORY){
@@ -218,10 +213,8 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
     int result = playerAdd(playerPID, from_client, to_client, *data);
 
     *data = result;
-    printf("[%d] result: %d\n",getpid(), result);
     if (result == TIMELOSS){
       *data = VICTORY;
-      printf("[%d] timeloss\n", getpid());
       sb.sem_op = UP;
       semop(semid, &sb, 1);
       shmdt(data);
@@ -230,7 +223,6 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
     if (result == LOSS){
       // Turns sharedInt to victory so opponent knows they've won
       *data = VICTORY;
-      printf("[%d] someone lost\n", getpid());
       // Tell player they lost
       int loss[] = {LOSS, LOSS};
       int writeResult = write(to_client, loss, 2*sizeof(int));
@@ -250,7 +242,6 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
 
 // This is where the main server organizes the participants to play against each other, organizes results
 void gameHub(int numPlayers, int* players, int genPipeFd){
-  printf("[%d] numPlayers: %d\n", getpid(), numPlayers);
   int* sharedInts = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
   int* semaphores = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
 
@@ -260,7 +251,6 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
     int randNum = getRandomNumber() % numPlayers;
     byePlayerIndex = randNum % numPlayers;
   }
-  printf("[%d] byePlayerIndex: %d\n", getpid(), byePlayerIndex);
 
   // Assigning shared memory and semaphore to players, or bye
   for (int i = 0; i < numPlayers; i+=2){
@@ -292,9 +282,6 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
   remove(GENPIPE);
 
 // Writing shared memory and semaphores to all subservers
-  for (int i = 0; i < numPlayers; i++){
-    printf("[%d] SharedMemoryKey: %u. SemaphoreKey: %u\n", getpid(), *(sharedInts + i), *(semaphores + i));
-  }
 
   for (int i = 0; i < numPlayers; i++){
     int writeResult = write(genPipeFd, sharedInts, MAX_PLAYERS * sizeof(int));
@@ -319,10 +306,7 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
     int* status = &statusThing;
     int returnPID = wait(status);
     returnPIDS[i] = returnPID;
-    printf("returnPID: %d\n", returnPID);
   }
-
-  printf("finished waiting on children to return\n");
 
   // Giving all subservers new subserverIDs to connect to the next game
   int newNumPlayers = (numPlayers + 1) / 2;
@@ -353,7 +337,6 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
   free(players);
 
   for (int i = 0; i < newNumPlayers; i++){
-      printf("player %d still alive\n", *(newPlayers + i));
       // If game ended
       if (newNumPlayers <= 1){
         for (int j = 0; j < numPlayers; j++){
@@ -364,10 +347,6 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
       if (writeResult == -1) err();
     }
 
-   printf("count: %d and newNumPlayers: %d (should be equal)\n", count, newNumPlayers);
-   for (int i = 0; i < numPlayers; i++){
-         printf("pid: %d newID: %d\n", *(players + i), *(newSubserverIDS + i));
-   }
 
   free(newSubserverIDS);
 
@@ -375,6 +354,7 @@ void gameHub(int numPlayers, int* players, int genPipeFd){
    if (newNumPlayers <= 1){
      sleep(2);
      free(newPlayers);
+     printf("%d is overall winner.\n", *newPlayers);
      return;
    }
 
@@ -416,7 +396,6 @@ void initializeGame(){
     // Subserver process. Finish connecting subserver to client, send subserver and client off to interact
     if (!forkResult){
       subserverID = numPlayers;
-      printf("[%d] subserverID: %d\n", getpid(), subserverID);
       to_client = subserver_connect( from_client );
 
       int genPipeFd = open(GENPIPE, O_RDONLY);
@@ -425,14 +404,11 @@ void initializeGame(){
         int result = playGame(from_client, to_client, subserverID, genPipeFd);
         if (result == -1) break;
         int * subserverIDS = (int*)(calloc(MAX_PLAYERS, sizeof(int)));
-        printf("got here\n");
         int readResult = read(genPipeFd, subserverIDS,MAX_PLAYERS * sizeof(int));
         subserverID = *(subserverIDS + subserverID);
         free(subserverIDS);
         if (readResult == -1) err();
-        printf("[%d] new subserverID: %d\n", getpid(), subserverID);
       }
-     // printf("someone is exiting\n");
       close(to_client);
       close(from_client);
       exit(0);
@@ -451,7 +427,6 @@ void initializeGame(){
 int main() {
   signal(SIGINT, sighandler);
   signal(SIGPIPE, sighandler);
-  printf("parent pid: %d\n", getpid());
 
   initializeGame();
   return 0;
