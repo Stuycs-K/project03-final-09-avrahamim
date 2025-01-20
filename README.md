@@ -19,11 +19,13 @@ The tournament progresses single-elimination until there is one final victor. If
 
 How does the user install/compile/run the program?
 * User must clone the repo from github, and compile it with the command `make compile`
-* The user then has to intialize the program, with the command `make server`. The user will be prompted how many players they will wait on until starting the game. This number must be a positive integer, and must be entered before any players can enter the game.
+* The user then has to intialize the program, with the command `make server`. The user will be prompted how many players they will wait on until starting the game. This number must be a positive integer, and must be entered **before** any players can enter the game.
 * Next, the user has to open several more terminals to connect several clients to the server. For however many players the server user entered, in each terminal he will enter the command `make player`.
 * Once the correct number of users have connected, the game will begin.
 
+**IMPORTANT NOTE**: If multiple different **accounts** are going to play the same game, the OWNER of the repo must change the permissions on the folder itself, with the command `chmod 0775 NAME_OF_REPO` to ensure all accounts have write access to the folder, and can properly play the game. If all players use the same account, this is unnecessary.
+
 How does the user interact with this program?
 * The server should not interact any more with the program.
-* The users will receive two numbers which they will be instructed to add together. At the time of receiving their numbers, the users will have 7 seconds to mentally add them together and enter the sum into stdin. That is the only way the users should ever have to interact with the program.
-* Users can forfeit their game with ctrl+c
+* The players will receive two numbers which they will be instructed to add together. At the time of receiving their numbers, the players will have 7 seconds to mentally add them together and enter the sum into stdin. That is the only way the users should ever have to interact with the program.
+* Players can forfeit their game with ctrl+c
