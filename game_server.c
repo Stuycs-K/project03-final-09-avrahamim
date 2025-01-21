@@ -155,6 +155,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   int sharedIntKey = *(sharedInts + subserverID);
   int semaphoreKey = *(semaphores + subserverID);
 
+//  printf("shm: %d, sem: %d\n", sharedIntKey, semaphoreKey);
   free(sharedInts);
   free(semaphores);
 
@@ -178,7 +179,7 @@ int playGame(int from_client, int to_client, int subserverID, int genPipeFd){
   if (readResult == -1) err();
 
   // Byes automatically advance
-  if (*(sharedInts + subserverID) == 0){
+  if (sharedIntKey == 0){
     int toClient[] = {BYE, BYE};
     int writeResult = write(to_client, toClient, 2*sizeof(int));
     if (writeResult == -1) err();
