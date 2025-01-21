@@ -47,6 +47,9 @@ Debugged everything from bye players to player-side mechanics to winning screen 
 ### 2025-01-17 - Testing on Different Accounts
 Much more debugging of the game this time involving having multiple different accounts able to connect to the program on the same computer, using chmod - 1.0 hrs
 
-### 2025-01-19 - More different accounts and Cleaning up
+### 2025-01-19 - More different accounts
 Switched infrastructure from server-side timing and "kill" to client-side timing and pipe-writing to ensure multi-account access - 1.5 hrs
+
+### 2025-01-20 - Cleaned up
 Cleaned up (closed pipes, freed malloced memory, detached variables and closed shared memory and semaphores, etc.) - 1.0 hrs
+Created video presentation, debugged - 0.5 hrs
