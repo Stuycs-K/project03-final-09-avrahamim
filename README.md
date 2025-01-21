@@ -29,3 +29,7 @@ How does the user interact with this program?
 * The server should not interact any more with the program.
 * The players will receive two numbers which they will be instructed to add together. At the time of receiving their numbers, the players will have 7 seconds to mentally add them together and enter the sum into stdin. That is the only way the users should ever have to interact with the program.
 * Players can forfeit their game with ctrl+c
+
+### Video Presentation:
+
+[Video Presentation](Video-Presentation.mp4?raw=true)
